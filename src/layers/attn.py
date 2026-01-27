@@ -43,6 +43,10 @@ class Attn:
     def weights_size(self):
         return 0
 
+    def per_token_per_layer_flops(self, avg_context_len: int) -> tuple[float, float]:
+        """返回 (attn_core_gflops, attn_proj_gflops)"""
+        return 0.0, 0.0
+
     @abstractmethod
     def attn_type(self):
         raise NotImplementedError
@@ -59,6 +63,13 @@ class MHAAttn(Attn):
 
     def attn_type(self):
         return "MHA"
+
+    def per_token_per_layer_flops(self, avg_context_len: int):
+        from src.flops.flops import get_mha_gflops
+
+        return get_mha_gflops(
+            self.config, self.serverArgs, bs=1, avg_context_len=avg_context_len
+        )
 
     def weights_size(self):
         from src.config.model_config import HybridAttnConfig, MHAConfig
@@ -113,6 +124,14 @@ class MLAAttn(Attn):
 
     def attn_type(self):
         return "MLA"
+
+    def per_token_per_layer_flops(self, avg_context_len: int):
+        from src.flops.flops import get_mla_absorb_gflops
+
+        # 默认使用 absorb 模式，这是常用的推理优化
+        return get_mla_absorb_gflops(
+            self.config, self.serverArgs, bs=1, avg_context_len=avg_context_len
+        )
 
     def weights_size(self):
         from src.config.model_config import HybridAttnConfig, MLAConfig
@@ -175,6 +194,13 @@ class LinearAttn(Attn):
 
     def attn_type(self):
         return "LinearAttn"
+
+    def per_token_per_layer_flops(self, avg_context_len: int):
+        from src.flops.flops import get_linear_attn_gflops
+
+        return get_linear_attn_gflops(
+            self.config, self.serverArgs, bs=1, avg_context_len=avg_context_len
+        )
 
     def weights_size(self):
         from src.config.model_config import HybridAttnConfig, LinearAttnConfig

@@ -25,6 +25,10 @@ class FFN:
     def weights_size(self):
         return 0
 
+    def per_token_per_layer_flops(self):
+        """返回 GFLOPS"""
+        return 0.0
+
     def layer_idx_ffn_state(self) -> str:
 
         if self.config.moe_config and self.config.moe_config.num_routed_experts > 1:
@@ -56,6 +60,21 @@ class DenseMLP(FFN):
         if self.serverArgs.use_fp8_gemm:
             return w
         return 2 * w
+
+    def per_token_per_layer_flops(self):
+        from src.flops.flops import gemm_flops
+
+        cfg = self.config.moe_config
+        if not cfg:
+            return 0.0
+        hidden_size = self.config.hidden_size
+        tp_size = self.serverArgs.tp_size if self.serverArgs.tp_size > 0 else 1
+        intermediate_size = cfg.intermediate_size
+
+        # Dense MLP compute: 3 * GEMM(1, H, I) per token
+        # Per device compute: 3 * GEMM(1, H, I/TP)
+        f = 3.0 * gemm_flops(1, hidden_size, intermediate_size // tp_size)
+        return f / 1e9
 
 
 class MoE(FFN):
@@ -119,13 +138,14 @@ class MoE(FFN):
         if not cfg:
             return 0
         # ep distributed, router expert will be divided by ep size, shared expert will copy on every gpu
-        # num_experts = (cfg.num_routed_experts / self.ep_size) + self.shared_experts
-        # print(
-        #     f"num_experts: {num_experts}， single expert weights size: {self.single_expert_weights_size()/(1024**2)}MB"
-        # )
         return (
             cfg.num_routed_experts / self.ep_size
         ) * self.single_expert_weights_size() + self.shared_experts * self.single_shared_mlp_size()
+
+    def per_token_per_layer_flops(self):
+        from src.flops.flops import get_moe_gflops
+
+        return get_moe_gflops(self.config, self.serverArgs)
 
 
 class QwenNextFFN(MoE):
@@ -133,11 +153,11 @@ class QwenNextFFN(MoE):
         super().__init__(serverArgs, config, layer_idx)
         # 这里可以解析 Qwen Next 特有的字段，比如 shared_expert_intermediate_size
         # 实际应用中可能需要从 config 中提取更多特定值
-
     def weights_size(self):
-        # 实现 Qwen Next 特有的逻辑（如果需要的话）
-        # 如果逻辑和 MoE 一样，可以直接复用父类，或者在这里修改公式
         return super().weights_size()
+
+    def per_token_per_layer_flops(self):
+        return super().flops()
 
 
 class DeepSeekV3FFN(FFN):
@@ -151,10 +171,12 @@ class DeepSeekV3FFN(FFN):
             self.ffn = DenseMLP(serverArgs, config, layer_idx)
         else:
             self.ffn = MoE(serverArgs, config, layer_idx)
-
     def weights_size(self):
         # 实现 DeepSeek V3 特有的逻辑（如果需要的话）
         return self.ffn.weights_size()
+
+    def per_token_per_layer_flops(self):
+        return self.ffn.flops()
 
     def layer_idx_ffn_state(self) -> str:
         assert (

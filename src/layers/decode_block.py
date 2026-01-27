@@ -33,6 +33,12 @@ class DecoderBlock:
         weight_size = attn_weights_bytes + ffn_weights_bytes
         return weight_size
 
+    def per_token_per_layer_flops(self, avg_context_len: int):
+        """返回 (attn_core_gflops, attn_proj_gflops, ffn_gflops)"""
+        attn_core, attn_proj = self.attn.per_token_per_layer_flops(avg_context_len)
+        ffn_flops = self.ffn.per_token_per_layer_flops()
+        return attn_core, attn_proj, ffn_flops
+
     def flops_bytes(self):
         return 0
 
@@ -84,6 +90,37 @@ class DecoderBlocks:
             self.block_ffn_weights_of_layers[layer_idx]["weights_bytes"]
             for layer_idx in self.block_ffn_weights_of_layers
         )
+
+    def print_flops_info(self, avg_context_len: int):
+        header = f"{'Layer':<6} | {'Attn Core':<12} | {'Attn Proj':<12} | {'FFN GFLOPS':<12} | {'Total GFLOPS':<12}"
+        separator = "-" * len(header)
+
+        print(f"\nDetailed Decoder GFLOPS Information (Context Len: {avg_context_len}):")
+        print(separator)
+        print(header)
+        print(separator)
+
+        total_attn_core = 0
+        total_attn_proj = 0
+        total_ffn = 0
+
+        for layer_idx, block in enumerate(self.blocks):
+            attn_core, attn_proj, ffn_flops = block.per_token_per_layer_flops(avg_context_len)
+            total_attn_core += attn_core
+            total_attn_proj += attn_proj
+            total_ffn += ffn_flops
+            layer_total = attn_core + attn_proj + ffn_flops
+
+            print(
+                f"{layer_idx:<6} | {attn_core:<12.2f} | {attn_proj:<12.2f} | {ffn_flops:<12.2f} | {layer_total:<12.2f}"
+            )
+
+        print(separator)
+        total_gflops = total_attn_core + total_attn_proj + total_ffn
+        print(
+            f"{'Total':<6} | {total_attn_core:<12.2f} | {total_attn_proj:<12.2f} | {total_ffn:<12.2f} | {total_gflops:<12.2f}"
+        )
+        print(separator)
 
     def print_decode_block_weights_info(self):
         header = f"{'Layer':<6} | {'Attn Type':<12} | {'FFN Type':<12} | {'Attn (MB)':<12} | {'FFN (MB)':<12} | {'Total (MB)':<12}"

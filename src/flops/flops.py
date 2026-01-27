@@ -1,4 +1,10 @@
-from src.config.model_config import ModelConfig, HybridAttnConfig
+from src.config.model_config import (
+    ModelConfig,
+    HybridAttnConfig,
+    MLAConfig,
+    MHAConfig,
+    LinearAttnConfig,
+)
 from src.server_args import ServerArgs
 
 
@@ -187,17 +193,68 @@ def get_mla_noabsorb_gflops(config: ModelConfig, server_args: ServerArgs, bs: in
     )
 
 
+def get_linear_attn_gflops(config, server_args, bs, avg_context_len):
+    tp_size = max(1, server_args.tp_size)
+    attn_cfg = config.attn_config if hasattr(config, "attn_config") else config
+    if isinstance(attn_cfg, HybridAttnConfig):
+        attn_cfg = attn_cfg.linear_attn_config
+
+    # Projections: Q, K, V, Z, A, B
+    # Each projection is 2 * bs * H * (H_per_tp)
+    q_proj = gemm_flops(
+        bs, config.hidden_size, (attn_cfg.num_key_heads // tp_size) * attn_cfg.key_head_dim
+    )
+    k_proj = gemm_flops(
+        bs, config.hidden_size, (attn_cfg.num_key_heads // tp_size) * attn_cfg.key_head_dim
+    )
+    v_proj = gemm_flops(
+        bs,
+        config.hidden_size,
+        (attn_cfg.num_value_heads // tp_size) * attn_cfg.value_head_dim,
+    )
+    z_proj = gemm_flops(
+        bs,
+        config.hidden_size,
+        (attn_cfg.num_value_heads // tp_size) * attn_cfg.value_head_dim,
+    )
+    a_proj = gemm_flops(bs, config.hidden_size, (attn_cfg.num_value_heads // tp_size))
+    b_proj = gemm_flops(bs, config.hidden_size, (attn_cfg.num_value_heads // tp_size))
+
+    projs = q_proj + k_proj + v_proj + z_proj + a_proj + b_proj
+
+    # Conv GFLOPS (approximate as 2 * bs * L * C * K)
+    # Here C is the head dimension * num_heads
+    num_k_heads = attn_cfg.num_key_heads // tp_size
+    num_v_heads = attn_cfg.num_value_heads // tp_size
+    conv_flops = 2.0 * bs * (num_k_heads * attn_cfg.key_head_dim) * attn_cfg.conv_kernel_dim
+    conv_flops += (
+        2.0 * bs * (num_k_heads * attn_cfg.key_head_dim) * attn_cfg.conv_kernel_dim
+    )
+    conv_flops += (
+        2.0 * bs * (num_v_heads * attn_cfg.value_head_dim) * attn_cfg.conv_kernel_dim
+    )
+
+    # SSM Core (simplified: 2 * bs * heads * d_head * d_state)
+    # Linear attention often has O(L * H * D) complexity
+    ssm_core = (
+        2.0 * bs * num_v_heads * attn_cfg.key_head_dim * attn_cfg.value_head_dim
+    )
+
+    return (conv_flops + ssm_core) / 1e9, projs / 1e9
+
+
 def get_attn_gflops(
     config: ModelConfig, server_args: ServerArgs, avg_context_len: int, absorb=True
 ):
     # Determine attn type from config
     attn_cfg = config.attn_config
     if isinstance(attn_cfg, HybridAttnConfig):
-        # Default to full attn for GFLOPS calculation or handle based on layer?
-        # Usually we want the GFLOPS of a specific layer type.
+        # We need to know which type of layer it is.
+        # But here we just dispatch based on what we have.
+        # In a real scenario, this might be called per layer.
+        # If we don't know the layer index, we default to full attn for now
+        # OR we expect the caller to pass the specific config.
         attn_cfg = attn_cfg.full_attn_config
-
-    from src.config.model_config import MLAConfig, MHAConfig
 
     if isinstance(attn_cfg, MHAConfig):
         return get_mha_gflops(config, server_args, bs=1, avg_context_len=avg_context_len)
@@ -207,6 +264,10 @@ def get_attn_gflops(
                 config, server_args, bs=1, avg_context_len=avg_context_len
             )
         return get_mla_noabsorb_gflops(
+            config, server_args, bs=1, avg_context_len=avg_context_len
+        )
+    elif isinstance(attn_cfg, LinearAttnConfig):
+        return get_linear_attn_gflops(
             config, server_args, bs=1, avg_context_len=avg_context_len
         )
     return 0.0, 0.0
