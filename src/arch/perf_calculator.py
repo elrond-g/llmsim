@@ -2,12 +2,12 @@
 性能计算引擎 - 统一的性能计算和分析模块
 """
 
+from src.arch.models_arch.model_arch import BaseModelArch
+from src.arch.op.operator_base import BaseOperator
 from src.arch.perf.layer_perf import LayerPerformance
 from src.arch.perf.model_perf import ModelPerformance
 from src.arch.perf.op_perf import OperatorPerformance
 from src.hardware.hardware_config import HardwareConfig
-from src.arch.models_arch.model_arch import BaseModelArch
-from src.arch.op.operator_base import BaseOperator
 
 
 class PerformanceCalculator:
