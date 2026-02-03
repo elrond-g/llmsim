@@ -88,26 +88,69 @@ class DeepSeekV3Arch(BaseModelArch):
         self._add_operator(create_operator("matmul", q_b_metadata))
 
         # KV B 投影
-        kv_b_metadata = OperatorMetadata(
-            name="kv_b",
-            op_type="matmul",
-            io_config=OperatorIO(
-                input_shape=Tensor(seq_len, mc.kv_lora_rank),
-                output_shape=Tensor(
-                    seq_len, num_heads_per_rank * (mc.v_head_dim + mc.qk_nope_head_dim)
+        if sc.mode == ForwardMode.EXTEND:
+            kv_b_metadata = OperatorMetadata(
+                name="kv_b",
+                op_type="matmul",
+                io_config=OperatorIO(
+                    input_shape=Tensor(seq_len, mc.kv_lora_rank),
+                    output_shape=Tensor(
+                        seq_len, num_heads_per_rank * (mc.v_head_dim + mc.qk_nope_head_dim)
+                    ),
+                    weight_shape=Tensor(
+                        mc.kv_lora_rank,
+                        num_heads_per_rank * (mc.v_head_dim + mc.qk_nope_head_dim),
+                    ),
+                    input_dtype=DataType.INT8,
+                    output_dtype=DataType.BF16,
+                    weight_dtype=DataType.INT8,
                 ),
-                weight_shape=Tensor(
-                    mc.kv_lora_rank,
-                    num_heads_per_rank * (mc.v_head_dim + mc.qk_nope_head_dim),
+                batch_size=1,
+                num_layers=num_layers,
+            )
+            self._add_operator(create_operator("matmul", kv_b_metadata))
+        if sc.mode == ForwardMode.DECODE:
+            q_absorb_metadata = OperatorMetadata(
+                name="q_absorb",
+                op_type="matmul",
+                io_config=OperatorIO(
+                    input_shape=Tensor(seq_len, mc.qk_nope_head_dim),
+                    output_shape=Tensor(
+                        seq_len, mc.kv_lora_rank
+                    ),
+                    weight_shape=Tensor(
+                        mc.qk_nope_head_dim,
+                        mc.kv_lora_rank,
+                    ),
+                    input_dtype=DataType.FP32,
+                    output_dtype=DataType.FP32,
+                    weight_dtype=DataType.FP32,
                 ),
-                input_dtype=DataType.INT8,
-                output_dtype=DataType.BF16,
-                weight_dtype=DataType.INT8,
-            ),
-            batch_size=1,
-            num_layers=num_layers,
-        )
-        self._add_operator(create_operator("matmul", kv_b_metadata))
+                batch_size=num_heads_per_rank,
+                num_layers=num_layers,
+            )
+            self._add_operator(create_operator("matmul", q_absorb_metadata))
+
+            o_absorb_metadata = OperatorMetadata(
+                name="o_absorb",
+                op_type="matmul",
+                io_config=OperatorIO(
+                    input_shape=Tensor(seq_len, mc.kv_lora_rank),
+                    output_shape=Tensor(
+                        seq_len, mc.v_head_dim
+                    ),
+                    weight_shape=Tensor(
+                        mc.kv_lora_rank,
+                        mc.v_head_dim,
+                    ),
+                    input_dtype=DataType.FP32,
+                    output_dtype=DataType.FP32,
+                    weight_dtype=DataType.FP32,
+                ),
+                batch_size=num_heads_per_rank,
+                num_layers=num_layers,
+            )
+            self._add_operator(create_operator("matmul", o_absorb_metadata))
 
         # 输出投影
         o_proj_metadata = OperatorMetadata(
@@ -248,16 +291,16 @@ class DeepSeekV3Arch(BaseModelArch):
         seq_len = self.get_seq_length()
         assert mc.n_routed_experts % sc.ep_size == 0
         experts_per_rank = mc.n_routed_experts // sc.ep_size
-
-        assert seq_len // sc.tp_size * mc.num_experts_per_tok % experts_per_rank == 0
-        # 计算每个 rank 的 token 数量
         if sc.mode == ForwardMode.EXTEND:
-            L_per_rank = (
-                seq_len // sc.tp_size * mc.num_experts_per_tok // experts_per_rank
-            )
-        else:  # DECODE
-            L_per_rank = 1  # 解码时为单 token
-
+            L = sc.max_seqlen
+        elif sc.mode == ForwardMode.DECODE:
+            L = sc.batch_size
+        assert L // sc.tp_size * mc.num_experts_per_tok % experts_per_rank == 0
+        # 计算每个 rank 的 token 数量
+        L_per_rank = (
+            L // sc.tp_size * mc.num_experts_per_tok // experts_per_rank
+        )
+        
         # MoE 共享中间层大小
         _moe_intermediate_size = mc.moe_intermediate_size
         if not sc.deepep:

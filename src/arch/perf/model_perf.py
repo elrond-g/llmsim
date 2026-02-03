@@ -84,7 +84,7 @@ class ModelPerformance:
         return time_us / sum_full_time * 100
 
 
-    def get_ttft(self) -> float:
+    def get_ttft_or_tpot(self) -> float:
         """TTFT ms， 0.02 是为了考虑下框架层面的开销"""
         return self.ttft * 1.02
 
@@ -98,12 +98,12 @@ class ModelPerformance:
         mode = self.schedule_config.mode
         if mode == ForwardMode.EXTEND:  # Prefill
             total_tokens = self.schedule_config.batch_size * self.schedule_config.max_seqlen
-            ttft_seconds = self.get_ttft() / 1000.0
+            ttft_seconds = self.get_ttft_or_tpot() / 1000.0
             return total_tokens / ttft_seconds if ttft_seconds > 0 else 0.0
         else:  # Decode
             # Decode 阶段：每个 token 的生成时间
             # TODO 需要调整
-            time_per_token_ms = self.total_time  # 假设 total_time 是 per-token 时间
+            time_per_token_ms = self.get_ttft_or_tpot()   # 假设 total_time 是 per-token 时间
             time_per_token_s = time_per_token_ms / 1000.0
             return self.schedule_config.batch_size / time_per_token_s if time_per_token_s > 0 else 0.0
 

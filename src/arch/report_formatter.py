@@ -3,9 +3,8 @@
 """
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
-from pathlib import Path
 from src.arch.perf_calculator import ModelPerformance
-
+from src.arch.config import ForwardMode
 
 class ReportFormatter(ABC):
     """性能报告格式化器的抽象基类"""
@@ -263,9 +262,9 @@ class ConsoleReportFormatter(ReportFormatter):
             print(f"│ {bottleneck_text}" + " " * max(padding, 1) + " │")
         
         # TTFT 与 Throughput
-        ttft = model_perf.get_ttft()
+        ttft = model_perf.get_ttft_or_tpot()
         print("├" + "─" * (total_width - 2) + "┤")
-        ttft_text = f"TTFT: (耗时: {ttft:.3f} ms)"
+        ttft_text = f"TTFT: (耗时: {ttft:.3f} ms)" if model_perf.forward_mode == ForwardMode.EXTEND else f"TPOT: (耗时: {ttft:.3f} ms)"
         padding = total_width - self._display_width(ttft_text) - 4
         print(f"│ {ttft_text}" + " " * max(padding, 1) + " │")
 
@@ -458,10 +457,10 @@ class ExcelReportFormatter(ReportFormatter):
             value_cell.value = f"{op_name} (总耗时: {op_perf.total_time:.3f} ms)"
                 
         # TTFT 与 Throughput
-        ttft = model_perf.get_ttft()
+        ttft = model_perf.get_ttft_or_tpot()
         throughput = model_perf.get_throughput()
         other_data = [
-            ('TTFT (ms)', ttft),
+            ('TTFT (ms)', ttft) if model_perf.forward_mode == ForwardMode.EXTEND else ('TPOT (ms)', ttft),
             ('吞吐量TPS', throughput),
         ]
         for idx, (label, value) in enumerate(other_data):
