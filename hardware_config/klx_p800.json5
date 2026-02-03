@@ -1,7 +1,7 @@
 {
   // 设备类型: gpu, xpu, accelerator
   device_type: "xpu",
-  
+
   // 硬件名称
   name: "KLX_P800",
 
@@ -21,11 +21,11 @@
     dma_bandwidth_gb_s: 85.0,
     // DMA 带宽 - 解码(decode)模式
     dma_bandwidth_decode_gb_s: 22.64,
-    
+
     // 机内通信 - Link 带宽
     link_bandwidth_gb_s: 85.0,
     link_bandwidth_decode_gb_s: 22.64,
-    
+
     // 机间通信 - RDMA 带宽
     rdma_bandwidth_gb_s: 85.0,
     rdma_bandwidth_decode_gb_s: 22.64,

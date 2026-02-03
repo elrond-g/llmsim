@@ -21,11 +21,11 @@
     dma_bandwidth_gb_s: 180.0,
     // DMA 带宽 - 解码(decode)模式
     dma_bandwidth_decode_gb_s: 30.0,
-    
+
     // 机内通信 - Link 带宽 (NVLink)
     link_bandwidth_gb_s: 1800.0,
     link_bandwidth_decode_gb_s: 40.0,
-    
+
     // 机间通信 - RDMA 带宽
     rdma_bandwidth_gb_s: 300.0,
     rdma_bandwidth_decode_gb_s: 40.0,
