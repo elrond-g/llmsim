@@ -115,8 +115,8 @@ class ScheduleConfig:
     mode: ForwardMode = ForwardMode.EXTEND
 
     # 并行化配置
-    tp_size: int = 16  # Tensor Parallel
-    dp_size: int = 4  # Data Parallel
+    tp_size: int = 1  # Tensor Parallel
+    dp_size: int = 16  # Data Parallel
     ep_size: int = 16  # Expert Parallel
 
     # 特殊功能开关

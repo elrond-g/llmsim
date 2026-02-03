@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 from typing import List
 
+from arch.config import ScheduleConfig
 from src.arch.perf.layer_perf import LayerPerformance
-
+from src.arch.model_type import ForwardMode
 
 @dataclass
 class ModelPerformance:
@@ -19,6 +20,10 @@ class ModelPerformance:
     total_memory_time: float = 0.0
     total_transfer_time: float = 0.0
     total_time: float = 0.0
+    ttft: float = 0.0
+    throughput: float = 0.0
+
+    schedule_config: ScheduleConfig = field(default_factory=ScheduleConfig)
 
     def add_layer(self, layer_perf: LayerPerformance) -> None:
         """添加层性能"""
@@ -49,6 +54,7 @@ class ModelPerformance:
                 # 需要乘以 1000 转换为微秒
                 full_time_us = op_perf.total_time * 1000.0
                 sum_full_time += full_time_us
+                self.ttft += op_perf.total_time
 
         # 如果总时间为0，使用 sum_full_time
         if self.total_time == 0:
@@ -76,3 +82,30 @@ class ModelPerformance:
         if sum_full_time == 0:
             return 0.0
         return time_us / sum_full_time * 100
+
+
+    def get_ttft(self) -> float:
+        """TTFT ms， 0.02 是为了考虑下框架层面的开销"""
+        return self.ttft * 1.02
+
+    def get_throughput(self) -> float:
+        """Throughput TPS 吞吐量: tokens/second， 需要切分prefill 还是 decode"""
+        """
+        计算吞吐量 (tokens/second)
+        Prefill 模式: (batch_size * seq_len) / TTFT
+        Decode 模式: batch_size / time_per_token
+        """
+        mode = self.schedule_config.mode
+        if mode == ForwardMode.EXTEND:  # Prefill
+            total_tokens = self.schedule_config.batch_size * self.schedule_config.max_seqlen
+            ttft_seconds = self.get_ttft() / 1000.0
+            return total_tokens / ttft_seconds if ttft_seconds > 0 else 0.0
+        else:  # Decode
+            # Decode 阶段：每个 token 的生成时间
+            # TODO 需要调整
+            time_per_token_ms = self.total_time  # 假设 total_time 是 per-token 时间
+            time_per_token_s = time_per_token_ms / 1000.0
+            return self.schedule_config.batch_size / time_per_token_s if time_per_token_s > 0 else 0.0
+
+    def get_throughput_single_gpu(self) -> float:
+        return self.get_throughput() / (self.schedule_config.tp_size * self.schedule_config.dp_size)

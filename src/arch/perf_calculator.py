@@ -238,6 +238,7 @@ class PerformanceCalculator:
         model_perf = ModelPerformance(
             model_name=model_arch.model_config.model_type,
             forward_mode=model_arch.schedule_config.mode.name,
+            schedule_config=model_arch.schedule_config,
         )
 
         # 矩阵算子的大部分在这里，attention 在attention那，传输的在传输那里

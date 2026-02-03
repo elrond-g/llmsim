@@ -19,6 +19,9 @@ class LayerPerformance:
     total_memory_time: float = 0.0
     total_transfer_time: float = 0.0
     total_time: float = 0.0
+    # 该层中每个算子的总时间
+    one_op_total_time: dict[str, float] = field(default_factory=dict)
+
 
     def add_operator(self, op_perf: OperatorPerformance) -> None:
         """添加算子性能"""
@@ -26,6 +29,7 @@ class LayerPerformance:
         self.total_compute_time += op_perf.compute_time
         self.total_memory_time += op_perf.memory_time
         self.total_transfer_time += op_perf.transfer_time
+        self.one_op_total_time[op_perf.name] = max(op_perf.compute_time, op_perf.memory_time) + op_perf.transfer_time
 
     def finalize(self) -> None:
         """计算最终的总时间"""

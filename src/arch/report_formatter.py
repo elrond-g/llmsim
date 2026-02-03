@@ -254,6 +254,19 @@ class ConsoleReportFormatter(ReportFormatter):
             padding = total_width - self._display_width(bottleneck_text) - 4
             print(f"│ {bottleneck_text}" + " " * max(padding, 1) + " │")
         
+        # TTFT 与 Throughput
+        ttft = model_perf.get_ttft()
+        print("├" + "─" * (total_width - 2) + "┤")
+        ttft_text = f"TTFT: (耗时: {ttft:.3f} ms)"
+        padding = total_width - self._display_width(ttft_text) - 4
+        print(f"│ {ttft_text}" + " " * max(padding, 1) + " │")
+
+        throughput = model_perf.get_throughput()
+        print("├" + "─" * (total_width - 2) + "┤")
+        throughput_txt = f"TPS: (throughput: {throughput:.3f})"
+        padding = total_width - self._display_width(throughput_txt) - 4
+        print(f"│ {throughput_txt}" + " " * max(padding, 1) + " │")
+
         print("└" + "─" * (total_width - 2) + "┘")
     
     def save(self, model_perf: ModelPerformance, output_path: str = None) -> None:
@@ -397,7 +410,7 @@ class ExcelReportFormatter(ReportFormatter):
                 cell.border = border
         
         # 添加统计行
-        stats_row = len(all_rows) + 5
+        stats_row = len(all_rows) + 7
         total_compute_ms = model_perf.total_compute_time / 1000.0
         total_memory_ms = model_perf.total_memory_time / 1000.0
         total_transfer_ms = model_perf.total_transfer_time / 1000.0
@@ -426,11 +439,28 @@ class ExcelReportFormatter(ReportFormatter):
             label_cell = ws.cell(row=bottleneck_row, column=1)
             label_cell.value = "性能瓶颈"
             label_cell.font = Font(bold=True)
-            
+                    
             _, op_name, op_perf = bottleneck
             value_cell = ws.cell(row=bottleneck_row, column=2)
             value_cell.value = f"{op_name} (总耗时: {op_perf.total_time:.3f} ms)"
-        
+                
+        # TTFT 与 Throughput
+        ttft = model_perf.get_ttft()
+        throughput = model_perf.get_throughput()
+        other_data = [
+            ('TTFT (ms)', ttft),
+            ('吐吐量TPS', throughput),
+        ]
+        for idx, (label, value) in enumerate(other_data):
+            ttft_throughput_row = stats_row + len(stats_data) + 2 + (2 if bottleneck else 0)
+            label_cell = ws.cell(row=ttft_throughput_row + idx, column=1)
+            label_cell.value = label
+            label_cell.font = Font(bold=True)
+                    
+            value_cell = ws.cell(row=ttft_throughput_row + idx, column=2)
+            value_cell.value = round(value, 3)
+            value_cell.number_format = '0.000'
+                
         return wb
     
     def save(self, model_perf: ModelPerformance, output_path: str = None) -> None:
