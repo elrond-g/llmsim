@@ -376,7 +376,7 @@ class ExcelReportFormatter(ReportFormatter):
         # 添加列标题
         headers = [
             '算子名称', '类型', 'm', 'n', 'k', 'batch', 'layers',
-            '输入', '输出', '权重', '计算(us)', '内存(us)', '传输(us)','单层理论延时(ms)',
+            '输入', '输出', '权重', '计算(us)', '内存(us)', '传输(us)','单层理论延时(us)',
             '总时间(ms)', '占比(%)'
         ]
         
