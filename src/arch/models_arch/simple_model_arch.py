@@ -98,7 +98,7 @@ class SimpleTransformerArch(BaseModelArch):
             io_config=OperatorIO(
                 input_shape=Tensor(seq_len, head_dim),
                 output_shape=Tensor(seq_len, sc.max_seqlen),
-                weight_shape=Tensor(0, 0),
+                weight_shape=Tensor(head_dim, sc.max_seqlen),
                 input_dtype=DataType.BF16,
                 output_dtype=DataType.BF16,
                 weight_dtype=DataType.BF16,
