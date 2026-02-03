@@ -241,7 +241,7 @@ class PerformanceCalculator:
             output_format: 输出格式 ('console' 或 'excel')
             output_path: 输出文件路径（可选，仅对某些格式有效）
         """
-        from src.arch.report_formatter import create_formatter
+        from src.visual.report_formatter import create_formatter
 
         formatter = create_formatter(output_format)
 
