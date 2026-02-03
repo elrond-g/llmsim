@@ -56,5 +56,43 @@ class AttentionOperator(BaseOperator):
             "intermediate": intermediate_mem,
         }
 
+    def _calculate_attention_hbm_time(
+        self,
+        load_count: int,
+        load_dtype: int,
+        store_count: int,
+        store_dtype: int,
+        dma: float,
+    ) -> float:
+        """
+        返回: 微秒 (us)
+        """
+        return (load_count * load_dtype + store_count * store_dtype) / dma / 1000000.0
+        
     def get_hbm_time(self, hardware: HardwareConfig) -> float:
-        pass
+        """获取注意力的 HBM 时间"""
+        op_name = self.metadata.name
+        if op_name == "qkv":
+            load_count = (
+                self.metadata.io_config.weight_shape.size() * self.metadata.batch_size
+            )  # 右边矩阵情况
+            store_count = (
+                self.metadata.io_config.input_shape.m
+                * self.metadata.io_config.weight_shape.n
+                * self.metadata.batch_size
+            )  # 左边矩阵情况
+        else:
+            load_count = (
+                self.metadata.io_config.input_shape.size()
+                + self.metadata.io_config.weight_shape.size()
+            ) * self.metadata.batch_size
+            store_count = 0
+        memory_time = self._calculate_attention_hbm_time(
+            load_count,
+            self.metadata.io_config.input_dtype.value,
+            store_count,
+            self.metadata.io_config.output_dtype.value,
+            hardware.bandwidth.hbm_bandwidth_gb_s,
+        )
+        # print(f"load_count={load_count}, store_count={store_count}, hbm={memory_time}")
+        return memory_time

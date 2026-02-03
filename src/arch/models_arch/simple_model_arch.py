@@ -1,3 +1,4 @@
+from src.arch.config import ForwardMode
 from src.arch.models_arch.base_model_arch import BaseModelArch
 from src.arch.op.op_register import create_operator
 from src.arch.op.operator_base import DataType, OperatorIO, OperatorMetadata, Tensor
@@ -62,6 +63,31 @@ class SimpleTransformerArch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", o_proj_metadata))
 
+        # 2.1. TP AllReduce (如果 TP > 1)
+        if sc.tp_size > 1:
+            # 根据模式选择带宽
+            if sc.mode == ForwardMode.EXTEND:
+                reduce_bandwidth = 85.0  # GB/s
+            else:  # DECODE
+                reduce_bandwidth = 22.64  # GB/s
+
+            all_reduce_metadata = OperatorMetadata(
+                name="attn_all_reduce",
+                op_type="transfer",
+                io_config=OperatorIO(
+                    input_shape=Tensor(seq_len, mc.hidden_size),
+                    output_shape=Tensor(seq_len, mc.hidden_size),
+                    weight_shape=Tensor(0, 0),
+                    input_dtype=DataType.BF16,
+                    output_dtype=DataType.BF16,
+                ),
+                batch_size=1,
+                num_layers=mc.num_hidden_layers,
+            )
+            all_reduce_op = create_operator("transfer", all_reduce_metadata)
+            all_reduce_op._bandwidth_gb_s = reduce_bandwidth
+            self._add_transfer_operator(all_reduce_op)
+
         # 3. 注意力核心
         attn_operators = []
 
@@ -74,7 +100,7 @@ class SimpleTransformerArch(BaseModelArch):
                 output_shape=Tensor(seq_len, sc.max_seqlen),
                 weight_shape=Tensor(0, 0),
                 input_dtype=DataType.BF16,
-                output_dtype=DataType.FP32,
+                output_dtype=DataType.BF16,
                 weight_dtype=DataType.BF16,
             ),
             batch_size=num_heads_per_rank,
@@ -91,7 +117,7 @@ class SimpleTransformerArch(BaseModelArch):
             io_config=OperatorIO(
                 input_shape=Tensor(seq_len, sc.max_seqlen),
                 output_shape=Tensor(seq_len, head_dim),
-                weight_shape=Tensor(0, 0),
+                weight_shape=Tensor(sc.max_seqlen, head_dim),
                 input_dtype=DataType.BF16,
                 output_dtype=DataType.BF16,
                 weight_dtype=DataType.BF16,
@@ -142,3 +168,28 @@ class SimpleTransformerArch(BaseModelArch):
             num_layers=mc.num_hidden_layers,
         )
         self._add_operator(create_operator("matmul", down_metadata))
+
+        # 4.1. TP AllReduce (如果 TP > 1)
+        if sc.tp_size > 1:
+            # 根据模式选择带宽
+            if sc.mode == ForwardMode.EXTEND:
+                reduce_bandwidth = 85.0  # GB/s
+            else:  # DECODE
+                reduce_bandwidth = 22.64  # GB/s
+
+            all_reduce_metadata = OperatorMetadata(
+                name="dense_all_reduce",
+                op_type="transfer",
+                io_config=OperatorIO(
+                    input_shape=Tensor(seq_len, mc.hidden_size),
+                    output_shape=Tensor(seq_len, mc.hidden_size),
+                    weight_shape=Tensor(0, 0),
+                    input_dtype=DataType.BF16,
+                    output_dtype=DataType.BF16,
+                ),
+                batch_size=1,
+                num_layers=mc.num_hidden_layers,
+            )
+            all_reduce_op = create_operator("transfer", all_reduce_metadata)
+            all_reduce_op._bandwidth_gb_s = reduce_bandwidth
+            self._add_transfer_operator(all_reduce_op)

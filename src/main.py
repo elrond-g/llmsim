@@ -1,5 +1,6 @@
 import argparse
 import sys
+import traceback
 
 from src.hardware.hardware_config import HardwareConfig, DEFAULT_HARDWARE, get_hardware_config
 from src.arch.config import ModelConfig, ScheduleConfig, ForwardMode
@@ -172,6 +173,8 @@ def main() -> None:
         model_perf = calculator.calculate_model_performance(model_arch)
     except Exception as e:
         print(f"性能计算失败: {e}", file=sys.stderr)
+        print("\n详细错误堆栈:", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         sys.exit(1)
     
     # 打印性能报告

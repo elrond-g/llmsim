@@ -136,23 +136,37 @@ class PerformanceCalculator:
         metadata = operator.metadata
 
         # 计算不同类型的时间
+        compute_time = 0.0
+        memory_time = 0.0
+        transfer_time = 0.0
+        
         if metadata.op_type == "transfer":
-            compute_time = 0.0
-            memory_time = 0.0
             transfer_time = self.calculate_transfer_time(operator)
         elif metadata.op_type == "attention":
-            transfer_time = 0.0
             compute_time = operator.get_compute_complexity()
             memory_time = operator.get_hbm_time(hardware=self.hardware)
-
         elif metadata.op_type == "matmul":
             compute_time = self.calculate_compute_time(operator)
             memory_time = self.calculate_memory_time(operator)
             # print(f'name = {operator.metadata.name}, compute_time = {compute_time}， memory_time={memory_time}')
-            transfer_time = 0.0
+        else:
+            # 未知算子类型，记录警告但继续执行
+            print(f"警告: 未识别的算子类型 '{metadata.op_type}'，算子名称: {metadata.name}")
 
         # 每层的时间 (乘以层数)
         layer_count = metadata.num_layers
+        
+        # 添加空值检查，防止 NoneType 错误
+        if compute_time is None:
+            print(f"警告: 算子 {metadata.name} 的 compute_time 为 None，设置为 0.0")
+            compute_time = 0.0
+        if memory_time is None:
+            print(f"警告: 算子 {metadata.name} 的 memory_time 为 None，设置为 0.0")
+            memory_time = 0.0
+        if transfer_time is None:
+            print(f"警告: 算子 {metadata.name} 的 transfer_time 为 None，设置为 0.0")
+            transfer_time = 0.0
+            
         total_compute_time = compute_time * layer_count
         total_memory_time = memory_time * layer_count
         total_transfer_time = transfer_time * layer_count
