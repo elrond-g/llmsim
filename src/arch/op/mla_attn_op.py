@@ -87,5 +87,5 @@ class MLAAttentionOperator(BaseOperator):
             self.metadata.io_config.output_dtype.value,
             hardware.bandwidth.hbm_bandwidth_gb_s,
         )
-        print(f"load_count={load_count}, store_count={store_count}, hbm={memory_time}")
+        # print(f"load_count={load_count}, store_count={store_count}, hbm={memory_time}")
         return memory_time
