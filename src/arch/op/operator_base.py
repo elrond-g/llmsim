@@ -14,6 +14,7 @@ class DataType(Enum):
     """数据类型"""
 
     INT8 = 1
+    FP8 = 1
     FP16 = 2
     BF16 = 2
     FP32 = 4
@@ -26,6 +27,10 @@ class Tensor:
 
     m: int = 0
     n: int = 0
+    
+    @property
+    def shape(self) -> tuple:
+        return (self.m, self.n)
 
     def size(self) -> int:
         """计算张量元素数量"""
