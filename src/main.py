@@ -2,10 +2,15 @@ import argparse
 import sys
 import traceback
 
-from src.hardware.hardware_config import HardwareConfig, DEFAULT_HARDWARE, get_hardware_config
-from src.arch.config import ModelConfig, ScheduleConfig, ForwardMode
+from src.arch.config import ForwardMode, ModelConfig, ScheduleConfig
 from src.arch.models_arch.model_arch import create_model_arch
 from src.arch.perf_calculator import PerformanceCalculator
+from src.hardware.hardware_config import (
+    DEFAULT_HARDWARE,
+    HardwareConfig,
+    get_hardware_config,
+)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="LLM 推理性能分析工具")
@@ -101,23 +106,27 @@ def parse_args():
 def validate_args(args) -> None:
     """验证命令行参数"""
     if args.max_seqlen % args.tp_size != 0:
-        raise ValueError(f"max_seqlen ({args.max_seqlen}) 必须能被 tp_size ({args.tp_size}) 整除")
-    
+        raise ValueError(
+            f"max_seqlen ({args.max_seqlen}) 必须能被 tp_size ({args.tp_size}) 整除"
+        )
+
     if args.batch_size > args.tp_size:
         if args.batch_size % args.tp_size != 0:
-            raise ValueError(f"batch_size ({args.batch_size}) 必须能被 tp_size ({args.tp_size}) 整除")
+            raise ValueError(
+                f"batch_size ({args.batch_size}) 必须能被 tp_size ({args.tp_size}) 整除"
+            )
 
 
 def main() -> None:
     """主函数"""
     args = parse_args()
-    
+
     try:
         validate_args(args)
     except ValueError as e:
         print(f"参数验证失败: {e}", file=sys.stderr)
         sys.exit(1)
-    
+
     # 加载模型配置
     print(f"加载模型配置: {args.model_path}")
     try:
@@ -125,7 +134,7 @@ def main() -> None:
     except Exception as e:
         print(f"加载模型配置失败: {e}", file=sys.stderr)
         sys.exit(1)
-    
+
     # 创建调度配置
     schedule_config = ScheduleConfig(
         batch_size=args.batch_size,
@@ -138,12 +147,15 @@ def main() -> None:
         deepep=args.enable_deepep,
         enable_moe_dense_fully_dp=args.enable_moe_dense_fully_dp,
     )
-    
+
     # 选择硬件配置
     if args.hardware == "custom":
         # 自定义配置文件
         if args.hardware_config is None:
-            print("错误: 使用 --hardware=custom 时必须指定 --hardware_config", file=sys.stderr)
+            print(
+                "错误: 使用 --hardware=custom 时必须指定 --hardware_config",
+                file=sys.stderr,
+            )
             sys.exit(1)
         hardware_config = HardwareConfig.from_json(args.hardware_config)
     elif args.hardware in ["h20", "h800", "gb200", "klx_p800"]:
@@ -152,23 +164,23 @@ def main() -> None:
     else:
         # 默认配置
         hardware_config = DEFAULT_HARDWARE
-    
+
     # 创建模型架构
     print(f"模型类型: {model_config.model_type}")
     print(f"前向模式: {schedule_config.mode.name}")
     print(f"硬件配置: {hardware_config.name}")
     print()
-    
+
     try:
         model_arch = create_model_arch(model_config, schedule_config)
     except Exception as e:
         print(f"创建模型架构失败: {e}", file=sys.stderr)
         sys.exit(1)
-    
+
     # 计算性能
     print("计算性能指标...")
     calculator = PerformanceCalculator(hardware_config)
-    
+
     try:
         model_perf = calculator.calculate_model_performance(model_arch)
     except Exception as e:
@@ -176,15 +188,12 @@ def main() -> None:
         print("\n详细错误堆栈:", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         sys.exit(1)
-    
+
     # 打印性能报告
     calculator.print_performance_report(
-        model_perf,
-        output_format=args.output_format,
-        output_path=args.output_file
+        model_perf, output_format=args.output_format, output_path=args.output_file
     )
 
 
 if __name__ == "__main__":
     main()
-

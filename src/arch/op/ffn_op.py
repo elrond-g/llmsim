@@ -39,3 +39,9 @@ class FFNOperator(BaseOperator):
 
     def get_hbm_time(self, hardware: HardwareConfig) -> float:
         pass
+
+    def get_weight_mem_occupy(self) -> float:
+        return (
+            self.metadata.io_config.weight_shape.size()
+            * self.metadata.io_config.weight_dtype.value
+        )

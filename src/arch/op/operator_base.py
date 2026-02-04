@@ -27,7 +27,7 @@ class Tensor:
 
     m: int = 0
     n: int = 0
-    
+
     @property
     def shape(self) -> tuple:
         return (self.m, self.n)
@@ -93,10 +93,10 @@ class BaseOperator(ABC):
     @abstractmethod
     def get_memory_requirement(self) -> Dict[str, int]:
         """
-        获取内存需求
+        获取内存占用需求
 
         Returns:
-            内存需求字典 {
+            内存占用需求字典 {
                 'input': 输入内存大小(字节),
                 'output': 输出内存大小(字节),
                 'weight': 权重内存大小(字节)
@@ -106,7 +106,7 @@ class BaseOperator(ABC):
 
     def get_io_volume(self) -> Dict[str, int]:
         """
-        获取 I/O 数据量
+        获取访存 I/O 数据量
 
         Returns:
             I/O 数据量字典 {
@@ -132,4 +132,20 @@ class BaseOperator(ABC):
 
     @abstractmethod
     def get_hbm_time(self, hardware: HardwareConfig) -> float:
+        pass
+
+    @abstractmethod
+    def get_weight_mem_occupy(self) -> float:
+        """
+        获取权重内存占用
+
+        Args:
+            hardware: 硬件配置
+
+        Returns:
+            权重内存占用
+
+        单位：
+            bytes
+        """
         pass

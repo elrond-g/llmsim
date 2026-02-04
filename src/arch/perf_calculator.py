@@ -139,7 +139,7 @@ class PerformanceCalculator:
         compute_time = 0.0
         memory_time = 0.0
         transfer_time = 0.0
-        
+
         if metadata.op_type == "transfer":
             transfer_time = self.calculate_transfer_time(operator)
         elif metadata.op_type == "attention":
@@ -151,11 +151,13 @@ class PerformanceCalculator:
             # print(f'name = {operator.metadata.name}, compute_time = {compute_time}， memory_time={memory_time}')
         else:
             # 未知算子类型，记录警告但继续执行
-            print(f"警告: 未识别的算子类型 '{metadata.op_type}'，算子名称: {metadata.name}")
+            print(
+                f"警告: 未识别的算子类型 '{metadata.op_type}'，算子名称: {metadata.name}"
+            )
 
         # 每层的时间 (乘以层数)
         layer_count = metadata.num_layers
-        
+
         # 添加空值检查，防止 NoneType 错误
         if compute_time is None:
             print(f"警告: 算子 {metadata.name} 的 compute_time 为 None，设置为 0.0")
@@ -166,13 +168,16 @@ class PerformanceCalculator:
         if transfer_time is None:
             print(f"警告: 算子 {metadata.name} 的 transfer_time 为 None，设置为 0.0")
             transfer_time = 0.0
-            
+
         total_compute_time = compute_time * layer_count
         total_memory_time = memory_time * layer_count
         total_transfer_time = transfer_time * layer_count
 
         # 总时间取最大值
         total_time = max(total_compute_time, total_memory_time) + total_transfer_time
+
+        single_layer_op_weight_mem = operator.get_weight_mem_occupy()
+        op_weight_mem = single_layer_op_weight_mem * layer_count
 
         op_perf = OperatorPerformance(
             name=metadata.name,
@@ -184,8 +189,10 @@ class PerformanceCalculator:
             total_time=total_time / 1000.0,  # 转换为毫秒
             flops=operator.get_compute_complexity() * layer_count,
             memory_volume=operator.get_memory_requirement().get("weight", 0),
-            io_volume=operator.get_io_volume().get("load", 0) + operator.get_io_volume().get("store", 0),
+            io_volume=operator.get_io_volume().get("load", 0)
+            + operator.get_io_volume().get("store", 0),
             metadata=metadata,
+            weight_mem_occupy=op_weight_mem,
         )
 
         return op_perf

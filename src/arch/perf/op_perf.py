@@ -27,6 +27,9 @@ class OperatorPerformance:
     # 记录这个算子的基本信息，用于可视化
     metadata: OperatorMetadata = field(default_factory=OperatorMetadata)
 
+    # 权重占用显存大小
+    weight_mem_occupy: float = 0.0
+
     def __str__(self) -> str:
         return (
             f"OperatorPerformance(name={self.name}, "

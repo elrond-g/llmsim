@@ -95,7 +95,8 @@ class DeepSeekV3Arch(BaseModelArch):
                 io_config=OperatorIO(
                     input_shape=Tensor(seq_len, mc.kv_lora_rank),
                     output_shape=Tensor(
-                        seq_len, num_heads_per_rank * (mc.v_head_dim + mc.qk_nope_head_dim)
+                        seq_len,
+                        num_heads_per_rank * (mc.v_head_dim + mc.qk_nope_head_dim),
                     ),
                     weight_shape=Tensor(
                         mc.kv_lora_rank,
@@ -115,9 +116,7 @@ class DeepSeekV3Arch(BaseModelArch):
                 op_type="matmul",
                 io_config=OperatorIO(
                     input_shape=Tensor(seq_len, mc.qk_nope_head_dim),
-                    output_shape=Tensor(
-                        seq_len, mc.kv_lora_rank
-                    ),
+                    output_shape=Tensor(seq_len, mc.kv_lora_rank),
                     weight_shape=Tensor(
                         mc.qk_nope_head_dim,
                         mc.kv_lora_rank,
@@ -136,9 +135,7 @@ class DeepSeekV3Arch(BaseModelArch):
                 op_type="matmul",
                 io_config=OperatorIO(
                     input_shape=Tensor(seq_len, mc.kv_lora_rank),
-                    output_shape=Tensor(
-                        seq_len, mc.v_head_dim
-                    ),
+                    output_shape=Tensor(seq_len, mc.v_head_dim),
                     weight_shape=Tensor(
                         mc.kv_lora_rank,
                         mc.v_head_dim,
@@ -347,10 +344,8 @@ class DeepSeekV3Arch(BaseModelArch):
             L = sc.batch_size
         assert L // sc.tp_size * mc.num_experts_per_tok % experts_per_rank == 0
         # 计算每个 rank 的 token 数量
-        L_per_rank = (
-            L // sc.tp_size * mc.num_experts_per_tok // experts_per_rank
-        )
-        
+        L_per_rank = L // sc.tp_size * mc.num_experts_per_tok // experts_per_rank
+
         # MoE 共享中间层大小
         _moe_intermediate_size = mc.moe_intermediate_size
         if not sc.deepep:

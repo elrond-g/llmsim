@@ -1,6 +1,6 @@
 from src.arch.config import ModelConfig, ScheduleConfig
-from src.hardware.hardware_config import HardwareConfig
 from src.arch.op.operator_base import DataType, Tensor
+from src.hardware.hardware_config import HardwareConfig
 
 
 class NetworkComm:
@@ -17,7 +17,14 @@ class NetworkComm:
 
     # calculate the bandwidth cost of a tensor in bytes. it will distinguish inter-node and intra-node
     # when inter_node is True, it will calculate the inter-node bandwidth cost using link_bandwidth, otherwise it will calculate the intra-node bandwidth cost
-    def size_of_bandwidth(self, tensor: Tensor, dtype: DataType, rdma_bandwidth, link_bandwidth, inter_node: bool = False):
+    def size_of_bandwidth(
+        self,
+        tensor: Tensor,
+        dtype: DataType,
+        rdma_bandwidth,
+        link_bandwidth,
+        inter_node: bool = False,
+    ):
         # if it only have one gpu, then there is no bandwidth cost
         if self.schedule_config.world_size <= 1:
             return 0
@@ -30,8 +37,6 @@ class NetworkComm:
             size = 1
         size *= tensor.size()
         if inter_node:
-            return size  / (1024 **3) / rdma_bandwidth
+            return size / (1024**3) / rdma_bandwidth
 
-        return size / (1024 ** 3) / link_bandwidth
-
-    
+        return size / (1024**3) / link_bandwidth

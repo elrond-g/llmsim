@@ -23,6 +23,7 @@ class MatmulOperator(BaseOperator):
 
     def get_memory_requirement(self) -> Dict[str, int]:
         """获取矩阵乘法的内存需求"""
+        """理论上所有矩阵乘法的显存占用都是下面的逻辑"""
         io = self.metadata.io_config
         batch = self.metadata.batch_size
 
@@ -38,3 +39,9 @@ class MatmulOperator(BaseOperator):
 
     def get_hbm_time(self, hardware: HardwareConfig) -> float:
         pass
+
+    def get_weight_mem_occupy(self) -> float:
+        return (
+            self.metadata.io_config.weight_shape.size()
+            * self.metadata.io_config.weight_dtype.value
+        )

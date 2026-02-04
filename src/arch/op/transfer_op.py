@@ -27,3 +27,6 @@ class TransferOperator(BaseOperator):
 
     def get_hbm_time(self, hardware: HardwareConfig) -> float:
         return 0.0
+
+    def get_weight_mem_occupy(self) -> float:
+        return 0.0

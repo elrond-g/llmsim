@@ -12,6 +12,7 @@ class MLAAttentionOperator(BaseOperator):
 
     def get_compute_complexity(self) -> float:
         """计算注意力的 FLOPs"""
+
         def _legacy_cal_mac_time(
             cal_count: int, dtype: int, mac_int8: float = 500.0
         ) -> float:
@@ -89,3 +90,6 @@ class MLAAttentionOperator(BaseOperator):
         )
         # print(f"load_count={load_count}, store_count={store_count}, hbm={memory_time}")
         return memory_time
+
+    def get_weight_mem_occupy(self) -> float:
+        return 0

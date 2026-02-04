@@ -68,7 +68,7 @@ class AttentionOperator(BaseOperator):
         返回: 微秒 (us)
         """
         return (load_count * load_dtype + store_count * store_dtype) / dma / 1000000.0
-        
+
     def get_hbm_time(self, hardware: HardwareConfig) -> float:
         """获取注意力的 HBM 时间"""
         op_name = self.metadata.name
@@ -96,3 +96,6 @@ class AttentionOperator(BaseOperator):
         )
         # print(f"load_count={load_count}, store_count={store_count}, hbm={memory_time}")
         return memory_time
+
+    def get_weight_mem_occupy(self) -> float:
+        return 0
