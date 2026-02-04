@@ -1,3 +1,4 @@
+from arch.kvcache.kvcache import mha_gqa_kvcache, mha_gqa_kvcache_per_gpu
 from src.arch.config import ForwardMode
 from src.arch.models_arch.base_model_arch import BaseModelArch
 from src.arch.op.op_register import create_operator
@@ -193,3 +194,11 @@ class SimpleTransformerArch(BaseModelArch):
             all_reduce_op = create_operator("transfer", all_reduce_metadata)
             all_reduce_op._bandwidth_gb_s = reduce_bandwidth
             self._add_transfer_operator(all_reduce_op)
+
+    def get_kv_cache(self):
+        return mha_gqa_kvcache(self.model_config, DataType.BF16)
+
+    def get_kv_cache_per_gpu(self):
+        return mha_gqa_kvcache_per_gpu(
+            self.model_config, DataType.BF16, self.schedule_config.tp_size
+        )

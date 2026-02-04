@@ -1,3 +1,4 @@
+from arch.kvcache.kvcache import mla_kvcache, mla_kvcache_per_gpu
 from src.arch.config import DeepSeekV3Config, ForwardMode
 from src.arch.models_arch.base_model_arch import BaseModelArch
 from src.arch.op.op_register import create_operator
@@ -491,3 +492,11 @@ class DeepSeekV3Arch(BaseModelArch):
         # 设置带宽（用于传输时间计算）
         combine_op._bandwidth_gb_s = combine_bandwidth
         self._add_transfer_operator(combine_op)
+
+    def get_kv_cache(self):
+        return mla_kvcache(self.model_config, DataType.INT8)
+
+    def get_kv_cache_per_gpu(self):
+        return mla_kvcache_per_gpu(
+            self.model_config, DataType.INT8, self.schedule_config.tp_size
+        )

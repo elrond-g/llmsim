@@ -46,3 +46,11 @@ class BaseModelArch(ABC):
     def _add_transfer_operator(self, operator: BaseOperator) -> None:
         """添加传输算子"""
         self.transfer_operators.append(operator)
+
+    def get_kv_cache(self):
+        """KVCache 理论上只跟model config 有关系"""
+        pass
+
+    def get_kv_cache_per_gpu(self):
+        """KVCache 理论上只跟model config 有关系"""
+        pass
