@@ -35,6 +35,8 @@ class ModelConfig:
             return DeepSeekV3Config.from_dict(data)
         elif model_type == "qwen3":
             return Qwen3Config.from_dict(data)
+        elif model_type == "qwen3_moe":
+            return Qwen3MoEConfig.from_dict(data)
         else:
             return ModelConfig.from_dict(data)
 
@@ -107,22 +109,17 @@ class Qwen3Config(ModelConfig):
 
 @dataclass
 class Qwen3MoEConfig(Qwen3Config):
-    """Qwen3 MoE 模型配置"""
+    """Qwen3 MoE configuration"""
 
     model_type: str = "qwen3_moe"
 
-    # MoE 特有参数
-    num_experts: int = 128              # 对应 n_routed_experts
+    # Specific parameters
+    num_experts: int = 128
     num_experts_per_tok: int = 8
     moe_intermediate_size: int = 1536
 
-    # Qwen3 MoE 与 DeepSeek V3 的区别：
-    # - 没有 n_shared_experts
-    # - 没有 first_k_dense_replace (所有层都是 MoE)
-
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "Qwen3MoEConfig":
-        """从字典创建配置"""
         config = Qwen3MoEConfig()
         for key, value in data.items():
             if hasattr(config, key):

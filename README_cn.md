@@ -107,6 +107,21 @@ python3 src/main.py \
     --hardware h800
 ```
 
+### 4. Qwen3 MoE 模型分析
+
+```bash
+python3 src/main.py \
+    --model_path hf_config/qwen3-235B-A22B_config.json \
+    --max_seqlen 4096 \
+    --batch_size 1 \
+    --mode extend \
+    --tp_size 4 \
+    --dp_size 4 \
+    --ep_size 16 \
+    --enable_deepep \
+    --hardware h800
+```
+
 ---
 
 ## 命令行参数说明

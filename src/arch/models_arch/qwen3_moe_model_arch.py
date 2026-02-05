@@ -6,29 +6,29 @@ from src.arch.op.operator_base import DataType, OperatorIO, OperatorMetadata, Te
 
 
 class Qwen3MoEArch(BaseModelArch):
-    """Qwen3 MoE 模型架构 (如 Qwen3-235B-A22B)"""
+    """Qwen3 MoE Model Architecture (e.g., Qwen3-235B-A22B)"""
 
     def build_operators(self) -> None:
-        """构建 Qwen3 MoE 模型的算子"""
+        """Build operators for Qwen3 MoE model"""
         mc = self.model_config
         sc = self.schedule_config
 
         if not isinstance(mc, Qwen3MoEConfig):
-            raise ValueError(f"MoE 架构需要 Qwen3MoEConfig，但收到 {type(mc)}")
+            raise ValueError(f"MoE architecture requires Qwen3MoEConfig, but got {type(mc)}")
 
-        # 1. 建立注意力层 (MHA，复用 SimpleTransformerArch 逻辑)
+        # 1. Build attention layers (MHA, reuse SimpleTransformerArch logic)
         num_layers = mc.num_hidden_layers + (1 if sc.is_mtp else 0)
         self._build_attention_operators(num_layers)
 
-        # 2. 建立 MoE 层 (复用 DeepSeekV3Arch._build_moe_operators 逻辑，但无 shared expert)
+        # 2. Build MoE layers (reuse DeepSeekV3Arch._build_moe_operators logic, but without shared expert)
         self._build_moe_operators(num_layers)
 
-        # 3. 建立 Deep-EP 传输算子（如果启用）
+        # 3. Build Deep-EP transfer operators (if enabled)
         if sc.deepep:
             self._build_deepep_operators(num_layers)
 
     def _build_attention_operators(self, num_layers: int) -> None:
-        """构建 MHA 注意力算子 (复用 SimpleTransformerArch 逻辑)"""
+        """Build MHA attention operators (reuse SimpleTransformerArch logic)"""
         mc = self.model_config
         sc = self.schedule_config
 
@@ -38,13 +38,13 @@ class Qwen3MoEArch(BaseModelArch):
         else:
             assert sc.tp_size % mc.num_key_value_heads == 0
 
-        # 计算每个 rank 的头数
+        # Calculate number of heads per rank
         num_heads_per_rank = mc.num_attention_heads // sc.tp_size
         kv_heads_per_rank = max(1, mc.num_key_value_heads // sc.tp_size)
         seq_len = self.get_seq_length()
         head_dim = getattr(mc, "head_dim", mc.hidden_size // mc.num_attention_heads)
 
-        # 1. QKV 投影
+        # 1. QKV projection
         qkv_proj_metadata = OperatorMetadata(
             name="qkv_proj",
             op_type="matmul",
@@ -66,7 +66,7 @@ class Qwen3MoEArch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", qkv_proj_metadata))
 
-        # 2. 输出投影
+        # 2. Output projection
         o_proj_metadata = OperatorMetadata(
             name="o_proj",
             op_type="matmul",
@@ -83,7 +83,7 @@ class Qwen3MoEArch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", o_proj_metadata))
 
-        # 2.1. TP AllReduce (如果 TP > 1)
+        # 2.1. TP AllReduce (if TP > 1)
         if sc.tp_size > 1:
             if sc.mode == ForwardMode.EXTEND:
                 reduce_bandwidth = 85.0  # GB/s
@@ -107,10 +107,10 @@ class Qwen3MoEArch(BaseModelArch):
             all_reduce_op._bandwidth_gb_s = reduce_bandwidth
             self._add_transfer_operator(all_reduce_op)
 
-        # 3. 注意力核心
+        # 3. Attention core
         attn_operators = []
 
-        # Q-K 注意力
+        # Q-K attention
         qk_metadata = OperatorMetadata(
             name="qk",
             op_type="attention",
@@ -129,7 +129,7 @@ class Qwen3MoEArch(BaseModelArch):
             create_operator("attention", qk_metadata, mc.attention_type)
         )
 
-        # Q-K-V 注意力
+        # Q-K-V attention
         qkv_metadata = OperatorMetadata(
             name="qkv",
             op_type="attention",
@@ -151,7 +151,7 @@ class Qwen3MoEArch(BaseModelArch):
         self._add_attention_operator("attention", attn_operators)
 
     def _build_moe_operators(self, num_layers: int) -> None:
-        """构建 MoE 算子 (复用 DeepSeekV3Arch 逻辑，但无 shared expert)"""
+        """Build MoE operators (reuse DeepSeekV3Arch logic, but without shared expert)"""
         mc = self.model_config
         sc = self.schedule_config
 
@@ -168,15 +168,15 @@ class Qwen3MoEArch(BaseModelArch):
             L = sc.batch_size
 
         assert L // sc.tp_size * mc.num_experts_per_tok % experts_per_rank == 0
-        # 计算每个 rank 的 token 数量
+        # Calculate number of tokens per rank
         L_per_rank = L // sc.tp_size * mc.num_experts_per_tok // experts_per_rank
 
-        # MoE 共享中间层大小
+        # MoE shared intermediate size
         _moe_intermediate_size = mc.moe_intermediate_size
         if not sc.deepep:
             _moe_intermediate_size = _moe_intermediate_size // sc.tp_size
 
-        # MoE Gate 投影
+        # MoE Gate projection
         moe_gate_metadata = OperatorMetadata(
             name="moe_gate",
             op_type="matmul",
@@ -193,7 +193,7 @@ class Qwen3MoEArch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", moe_gate_metadata))
 
-        # MoE Up 投影
+        # MoE Up projection
         moe_up_metadata = OperatorMetadata(
             name="moe_up",
             op_type="matmul",
@@ -210,7 +210,7 @@ class Qwen3MoEArch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", moe_up_metadata))
 
-        # MoE Down 投影
+        # MoE Down projection
         moe_down_metadata = OperatorMetadata(
             name="moe_down",
             op_type="matmul",
@@ -227,10 +227,10 @@ class Qwen3MoEArch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", moe_down_metadata))
 
-        # 注意：Qwen3 MoE 没有 shared expert，不需要 build shared_up/shared_down
+        # Note: Qwen3 MoE has no shared expert, no need to build shared_up/shared_down
 
     def _build_deepep_operators(self, num_layers: int) -> None:
-        """构建 Deep-EP 传输算子"""
+        """Build Deep-EP transfer operators"""
         mc = self.model_config
         sc = self.schedule_config
 
@@ -239,7 +239,7 @@ class Qwen3MoEArch(BaseModelArch):
 
         seq_len = self.get_seq_length()
 
-        # dispatch 传输算子
+        # dispatch transfer operator
         dispatch_metadata = OperatorMetadata(
             name="dispatch",
             op_type="transfer",
@@ -254,14 +254,14 @@ class Qwen3MoEArch(BaseModelArch):
             num_layers=num_layers,
         )
         dispatch_op = create_operator("transfer", dispatch_metadata)
-        # dispatch 使用 dma_bandwidth
+        # dispatch uses dma_bandwidth
         if sc.mode == ForwardMode.EXTEND:
-            dispatch_op._bandwidth_gb_s = 100.0  # GB/s，默认值
+            dispatch_op._bandwidth_gb_s = 100.0  # GB/s, default value
         else:  # DECODE
             dispatch_op._bandwidth_gb_s = 18.58  # GB/s
         self._add_transfer_operator(dispatch_op)
 
-        # combine 传输算子
+        # combine transfer operator
         combine_metadata = OperatorMetadata(
             name="combine",
             op_type="transfer",
@@ -276,9 +276,9 @@ class Qwen3MoEArch(BaseModelArch):
             num_layers=num_layers,
         )
         combine_op = create_operator("transfer", combine_metadata)
-        # combine 使用 dma_bandwidth
+        # combine uses dma_bandwidth
         if sc.mode == ForwardMode.EXTEND:
-            combine_op._bandwidth_gb_s = 100.0  # GB/s，默认值
+            combine_op._bandwidth_gb_s = 100.0  # GB/s, default value
         else:  # DECODE
             combine_op._bandwidth_gb_s = 22.64  # GB/s
         self._add_transfer_operator(combine_op)
