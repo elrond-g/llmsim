@@ -35,6 +35,8 @@ class ModelConfig:
             return DeepSeekV3Config.from_dict(data)
         elif model_type == "qwen3":
             return Qwen3Config.from_dict(data)
+        elif model_type == "qwen3_moe":
+            return Qwen3MoEConfig.from_dict(data)
         else:
             return ModelConfig.from_dict(data)
 
@@ -104,6 +106,28 @@ class Qwen3Config(ModelConfig):
             else:
                 setattr(config, key, value)
         return config
+
+@dataclass
+class Qwen3MoEConfig(Qwen3Config):
+    """Qwen3 MoE configuration"""
+
+    model_type: str = "qwen3_moe"
+
+    # Specific parameters
+    num_experts: int = 128
+    num_experts_per_tok: int = 8
+    moe_intermediate_size: int = 1536
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "Qwen3MoEConfig":
+        config = Qwen3MoEConfig()
+        for key, value in data.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+            else:
+                setattr(config, key, value)
+        return config
+
 
 
 @dataclass

@@ -5,6 +5,7 @@ Model architecture abstraction layer - Defines generic model architecture interf
 from src.arch.config import ModelConfig, ScheduleConfig
 from src.arch.models_arch.base_model_arch import BaseModelArch
 from src.arch.models_arch.deepseek_v3_model_arch import DeepSeekV3Arch
+from src.arch.models_arch.qwen3_moe_model_arch import Qwen3MoEArch
 from src.arch.models_arch.simple_model_arch import SimpleTransformerArch
 
 
@@ -26,7 +27,7 @@ def create_model_arch(
     if model_type in ("deepseek_v3", "deepseek_r1"):
         return DeepSeekV3Arch(model_config, schedule_config)
     elif model_type == "qwen3_moe":
-        raise NotImplementedError
+        return Qwen3MoEArch(model_config, schedule_config)
     elif model_type == "qwen3":
         return SimpleTransformerArch(model_config, schedule_config)
     else:
