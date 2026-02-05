@@ -5,7 +5,7 @@ from arch.config import ModelConfig
 
 def mha_gqa_kvcache(config: ModelConfig, kvcache_dtype: DataType):
     """
-    所有层KVCache的大小
+    KVCache size for all layers
     """
     decoder_layers = getattr(config, "num_hidden_layers")
     assert decoder_layers > 0, "decoder_layers must be greater than 0"
@@ -25,14 +25,14 @@ def mha_gqa_kvcache(config: ModelConfig, kvcache_dtype: DataType):
 
 def mha_gqa_kvcache_per_gpu(config: ModelConfig, kvcache_dtype: DataType, tp_size: int):
     """
-    按照TP组切分来计算单个GPU的KVCache大小
+    Calculate KVCache size for a single GPU based on TP group partitioning
     """
     return mha_gqa_kvcache(config, kvcache_dtype) // tp_size
 
 
 def mla_kvcache(config: ModelConfig, kvcache_dtype: DataType):
     """
-    所有层KVCache的大小
+    KVCache size for all layers
     """
     decoder_layers = getattr(config, "num_hidden_layers")
     assert decoder_layers > 0, "decoder_layers must be greater than 0"
@@ -48,13 +48,13 @@ def mla_kvcache(config: ModelConfig, kvcache_dtype: DataType):
 
 def mla_kvcache_per_gpu(config: ModelConfig, kvcache_dtype: DataType, tp_size: int):
     """
-    按照TP组切分来计算单个GPU的MLA KVCache大小
+    Calculate MLA KVCache size for a single GPU based on TP group partitioning
 
-    MLA的KVCache在TP并行时的切分策略：
-    - MLA使用低秩压缩表示(kv_lora_rank + qk_rope_head_dim)，不再是多头形式
-    - 只有Query的头按TP切分，KVCache本身不切分，所有TP rank保存相同的压缩KV Cache
-    - 因此单个GPU的KVCache大小与总大小相同
+    MLA KVCache partitioning strategy under TP parallelism:
+    - MLA uses low-rank compressed representation (kv_lora_rank + qk_rope_head_dim), no longer in multi-head form
+    - Only Query heads are partitioned by TP, KVCache itself is not partitioned, all TP ranks store the same compressed KV Cache
+    - Therefore, the KVCache size for a single GPU is the same as the total size
 
-    注意：如果未来实现策略改变，需要相应调整此函数
+    Note: If the implementation strategy changes in the future, this function needs to be adjusted accordingly
     """
     return mla_kvcache(config, kvcache_dtype)

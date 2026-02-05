@@ -5,34 +5,35 @@ from src.visual.report_base import ReportFormatter
 
 
 class ExcelReportFormatter(ReportFormatter):
-    """Excel输出格式化器"""
+    """Excel output formatter"""
 
     def format(self, model_perf: ModelPerformance) -> Any:
         """
-        格式化性能报告为Excel工作簿
+        Format performance report as Excel workbook
 
         Args:
-            model_perf: 模型性能指标
+            model_perf: Model performance metrics
 
         Returns:
-            openpyxl.Workbook 对象
+            openpyxl.Workbook object
         """
         try:
             import openpyxl
             from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         except ImportError:
             raise ImportError(
-                "需要安装 openpyxl 库来支持Excel输出。" "请运行: pip install openpyxl"
+                "openpyxl library is required for Excel output."
+                "Please run: pip install openpyxl"
             )
 
         all_rows = self._collect_data(model_perf)
 
-        # 创建工作簿和工作表
+        # Create workbook and worksheet
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "性能分析"
+        ws.title = "Performance Analysis"
 
-        # 设置列宽
+        # Set column widths
         ws.column_dimensions["A"].width = 15
         ws.column_dimensions["B"].width = 12
         ws.column_dimensions["C"].width = 8
@@ -51,7 +52,7 @@ class ExcelReportFormatter(ReportFormatter):
         ws.column_dimensions["P"].width = 10
         ws.column_dimensions["Q"].width = 12
 
-        # 定义样式
+        # Define styles
         header_fill = PatternFill(
             start_color="4472C4", end_color="4472C4", fill_type="solid"
         )
@@ -67,31 +68,33 @@ class ExcelReportFormatter(ReportFormatter):
         left_align = Alignment(horizontal="left", vertical="center")
         right_align = Alignment(horizontal="right", vertical="center")
 
-        # 添加标题
-        ws["A1"] = f"性能分析报告: {model_perf.model_name} ({model_perf.forward_mode})"
+        # Add title
+        ws["A1"] = (
+            f"Performance Analysis Report: {model_perf.model_name} ({model_perf.forward_mode})"
+        )
         ws["A1"].font = title_font
         ws.merge_cells("A1:Q1")
         ws["A1"].alignment = center_align
 
-        # 添加列标题
+        # Add column headers
         headers = [
-            "算子名称",
-            "类型",
+            "Operator Name",
+            "Type",
             "m",
             "n",
             "k",
             "batch",
             "layers",
-            "输入",
-            "输出",
-            "权重",
-            "计算(us)",
-            "内存(us)",
-            "传输(us)",
-            "单层理论延时(us)",
-            "总时间(ms)",
-            "占比(%)",
-            "权重/单卡alllayers",
+            "Input",
+            "Output",
+            "Weight",
+            "Compute(us)",
+            "Memory(us)",
+            "Transfer(us)",
+            "Single Layer Theory Latency(us)",
+            "Total Time(ms)",
+            "Percent(%)",
+            "Weight/Single GPU All Layers",
         ]
 
         for col, header in enumerate(headers, start=1):
@@ -150,7 +153,7 @@ class ExcelReportFormatter(ReportFormatter):
 
                 cell.border = border
 
-        # 添加统计行
+        # Add statistics row
         stats_row = len(all_rows) + 7
         total_compute_ms = model_perf.total_compute_time / 1000.0
         total_memory_ms = model_perf.total_memory_time / 1000.0
@@ -158,10 +161,10 @@ class ExcelReportFormatter(ReportFormatter):
         total_ms = model_perf.total_time / 1000.0
 
         stats_data = [
-            ("计算时间 (ms)", total_compute_ms),
-            ("内存时间 (ms)", total_memory_ms),
-            ("传输时间 (ms)", total_transfer_ms),
-            ("总耗时 (ms)", total_ms),
+            ("Compute Time (ms)", total_compute_ms),
+            ("Memory Time (ms)", total_memory_ms),
+            ("Transfer Time (ms)", total_transfer_ms),
+            ("Total Time (ms)", total_ms),
         ]
 
         for idx, (label, value) in enumerate(stats_data):
@@ -173,19 +176,19 @@ class ExcelReportFormatter(ReportFormatter):
             value_cell.value = round(value, 3)
             value_cell.number_format = "0.000"
 
-        # 添加性能瓶颈信息
+        # Add performance bottleneck information
         bottleneck = model_perf.get_bottleneck_op()
         if bottleneck:
             bottleneck_row = stats_row + len(stats_data) + 2
             label_cell = ws.cell(row=bottleneck_row, column=1)
-            label_cell.value = "性能瓶颈"
+            label_cell.value = "Performance Bottleneck"
             label_cell.font = Font(bold=True)
 
             _, op_name, op_perf = bottleneck
             value_cell = ws.cell(row=bottleneck_row, column=2)
-            value_cell.value = f"{op_name} (总耗时: {op_perf.total_time:.3f} ms)"
+            value_cell.value = f"{op_name} (Total Time: {op_perf.total_time:.3f} ms)"
 
-        # TTFT 与 Throughput
+        # TTFT and Throughput
         ttft = model_perf.get_ttft_or_tpot()
         throughput = model_perf.get_throughput()
         other_data = [
@@ -194,8 +197,11 @@ class ExcelReportFormatter(ReportFormatter):
                 if model_perf.forward_mode == "EXTEND"
                 else ("TPOT (ms)", ttft)
             ),
-            ("吞吐量TPS", throughput),
-            ("权重显存/单卡(GB)", model_perf.model_total_mem_occupy / (1024**3)),
+            ("Throughput TPS", throughput),
+            (
+                "Weight Memory/Single GPU (GB)",
+                model_perf.model_total_mem_occupy / (1024**3),
+            ),
         ]
         for idx, (label, value) in enumerate(other_data):
             ttft_throughput_row = (
@@ -213,18 +219,18 @@ class ExcelReportFormatter(ReportFormatter):
 
     def save(self, model_perf: ModelPerformance, output_path: str = None) -> None:
         """
-        保存性能报告到Excel文件
+        Save performance report to Excel file
 
         Args:
-            model_perf: 模型性能指标
-            output_path: 输出Excel文件路径
+            model_perf: Model performance metrics
+            output_path: Output Excel file path
         """
         if not output_path:
-            output_path = "性能报告.xlsx"
+            output_path = "Performance_Report.xlsx"
 
         try:
             wb = self.format(model_perf)
             wb.save(output_path)
-            print(f"Excel报告已保存到: {output_path}")
+            print(f"Excel report saved to: {output_path}")
         except Exception as e:
-            print(f"保存Excel报告失败: {e}")
+            print(f"Failed to save Excel report: {e}")

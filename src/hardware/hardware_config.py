@@ -1,5 +1,5 @@
 """
-硬件配置模块 - 支持从 JSON/JSON5 配置文件动态加载硬件参数
+Hardware configuration module - Supports dynamic loading of hardware parameters from JSON/JSON5 configuration files
 """
 
 import json
@@ -10,7 +10,7 @@ from typing import Optional
 
 
 class DeviceType(Enum):
-    """设备类型"""
+    """Device type"""
 
     UNKNOWN = "unknown"
     GPU = "gpu"
@@ -20,48 +20,48 @@ class DeviceType(Enum):
 
 @dataclass
 class MemoryConfig:
-    """显存配置"""
+    """Memory configuration"""
 
-    hbm_size_gb: int = 96  # HBM显存大小(GB)
-    cache_line_size: int = 128  # Cache行大小
+    hbm_size_gb: int = 96  # HBM memory size (GB)
+    cache_line_size: int = 128  # Cache line size
 
 
 @dataclass
 class BandwidthConfig:
-    """带宽配置"""
+    """Bandwidth configuration"""
 
-    hbm_bandwidth_gb_s: float = 1.8  # HBM带宽(TB/s)
+    hbm_bandwidth_gb_s: float = 1.8  # HBM bandwidth (TB/s)
     dma_bandwidth_gb_s: float = (
-        85.0  # DMA带宽(GB/s) - 扩展模式, DISPATCH/COMBINE使用的带宽
+        85.0  # DMA bandwidth (GB/s) - extend mode, bandwidth used by DISPATCH/COMBINE
     )
-    dma_bandwidth_decode_gb_s: float = 22.64  # DMA带宽(GB/s) - 解码模式
+    dma_bandwidth_decode_gb_s: float = 22.64  # DMA bandwidth (GB/s) - decode mode
 
-    # 机内通信（同一机器内多卡，走 Link 如 NVLink）
-    link_bandwidth_gb_s: float = 85.0  # Link带宽(GB/s) - 扩展模式
-    link_bandwidth_decode_gb_s: float = 22.64  # Link带宽(GB/s) - 解码模式
+    # Intra-node communication (multiple cards within same machine, via Link such as NVLink)
+    link_bandwidth_gb_s: float = 85.0  # Link bandwidth (GB/s) - extend mode
+    link_bandwidth_decode_gb_s: float = 22.64  # Link bandwidth (GB/s) - decode mode
 
-    # 机间通信（不同机器，走 RDMA 如 InfiniBand）
-    rdma_bandwidth_gb_s: float = 85.0  # RDMA带宽(GB/s) - 扩展模式
-    rdma_bandwidth_decode_gb_s: float = 22.64  # RDMA带宽(GB/s) - 解码模式
+    # Inter-node communication (different machines, via RDMA such as InfiniBand)
+    rdma_bandwidth_gb_s: float = 85.0  # RDMA bandwidth (GB/s) - extend mode
+    rdma_bandwidth_decode_gb_s: float = 22.64  # RDMA bandwidth (GB/s) - decode mode
 
     @property
     def network_bandwidth_decode_gb_s(self) -> float:
-        """向后兼容：网络带宽默认使用 Link 带宽"""
+        """Backward compatibility: network bandwidth defaults to Link bandwidth"""
         return self.link_bandwidth_decode_gb_s
 
 
 @dataclass
 class ComputeConfig:
-    """计算配置"""
+    """Compute configuration"""
 
-    mac_int8_gflops: float = 500.0  # INT8 MAC性能(TFLOPS)
-    mac_fp32_gflops: float = 125.0  # FP32 MAC性能(TFLOPS)
-    mac_bf16_gflops: float = 250.0  # BF16 MAC性能(TFLOPS)
+    mac_int8_gflops: float = 500.0  # INT8 MAC performance (TFLOPS)
+    mac_fp32_gflops: float = 125.0  # FP32 MAC performance (TFLOPS)
+    mac_bf16_gflops: float = 250.0  # BF16 MAC performance (TFLOPS)
 
 
 @dataclass
 class HardwareConfig:
-    """硬件配置容器"""
+    """Hardware configuration container"""
 
     device_type: DeviceType = DeviceType.GPU
     name: str = "Default GPU"
@@ -80,9 +80,9 @@ class HardwareConfig:
 
     @staticmethod
     def _parse_bandwidth_config(bandwidth_data: dict) -> "BandwidthConfig":
-        """解析带宽配置，支持新旧两种格式"""
+        """Parse bandwidth configuration, supporting both old and new formats"""
 
-        # 如果新格式中有 link/rdma 配置，使用它们；否则回退到 network_bandwidth
+        # If link/rdma config exists in new format, use them; otherwise fallback to network_bandwidth
         return BandwidthConfig(
             hbm_bandwidth_gb_s=bandwidth_data.get("hbm_bandwidth_gb_s", 1.8),
             dma_bandwidth_gb_s=bandwidth_data.get("dma_bandwidth_gb_s", 85.0),
@@ -102,13 +102,13 @@ class HardwareConfig:
     @classmethod
     def from_json(cls, config_path: str) -> "HardwareConfig":
         """
-        从 JSON/JSON5 配置文件加载硬件配置
+        Load hardware configuration from JSON/JSON5 configuration file
 
         Args:
-            config_path: JSON 或 JSON5 配置文件路径
+            config_path: JSON or JSON5 configuration file path
 
         Returns:
-            HardwareConfig 实例
+            HardwareConfig instance
         """
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Hardware config not found: {config_path}")
@@ -144,7 +144,7 @@ class HardwareConfig:
         )
 
 
-# 硬件配置注册表 - 支持通过名称加载预定义配置
+# Hardware configuration registry - supports loading predefined configurations by name
 _HARDWARE_REGISTRY: dict[str, str] = {
     "default": "hardware_config/default_gpu.json5",
     "h20": "hardware_config/h20.json5",
@@ -156,13 +156,13 @@ _HARDWARE_REGISTRY: dict[str, str] = {
 
 def get_hardware_config(name: str = "default") -> HardwareConfig:
     """
-    通过名称获取预定义的硬件配置
+    Get predefined hardware configuration by name
 
     Args:
-        name: 硬件配置名称 (default, h20, h800, gb200)
+        name: Hardware configuration name (default, h20, h800, gb200)
 
     Returns:
-        HardwareConfig 实例
+        HardwareConfig instance
     """
     config_path = _HARDWARE_REGISTRY.get(name.lower())
     if config_path is None:
@@ -170,9 +170,9 @@ def get_hardware_config(name: str = "default") -> HardwareConfig:
             f"Unknown hardware config: {name}. Available: {list(_HARDWARE_REGISTRY.keys())}"
         )
 
-    # 如果是相对路径，添加项目根目录
+    # If relative path, add project root directory
     if not os.path.isabs(config_path):
-        # 获取当前文件所在目录的父目录（即项目根目录）
+        # Get parent directory of current file (i.e., project root directory)
         project_root = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         )
@@ -181,5 +181,5 @@ def get_hardware_config(name: str = "default") -> HardwareConfig:
     return HardwareConfig.from_json(config_path)
 
 
-# 默认硬件配置 (回退配置)
+# Default hardware configuration (fallback configuration)
 DEFAULT_HARDWARE = get_hardware_config("default")

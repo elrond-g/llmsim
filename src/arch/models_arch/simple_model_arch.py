@@ -6,10 +6,10 @@ from src.arch.op.operator_base import DataType, OperatorIO, OperatorMetadata, Te
 
 
 class SimpleTransformerArch(BaseModelArch):
-    """简单 Transformer 模型架构（如 Qwen3）"""
+    """Simple Transformer model architecture (e.g., Qwen3)"""
 
     def build_operators(self) -> None:
-        """构建标准 Transformer 算子"""
+        """Build standard Transformer operators"""
         mc = self.model_config
         sc = self.schedule_config
 
@@ -19,13 +19,13 @@ class SimpleTransformerArch(BaseModelArch):
         else:
             assert sc.tp_size % mc.num_key_value_heads == 0
 
-        # 计算每个 rank 的头数
+        # Calculate number of heads per rank
         num_heads_per_rank = mc.num_attention_heads // sc.tp_size
         kv_heads_per_rank = max(1, mc.num_key_value_heads // sc.tp_size)
         seq_len = self.get_seq_length()
         head_dim = getattr(mc, "head_dim", mc.hidden_size // mc.num_attention_heads)
 
-        # 1. QKV 投影
+        # 1. QKV projection
         qkv_proj_metadata = OperatorMetadata(
             name="qkv_proj",
             op_type="matmul",
@@ -47,7 +47,7 @@ class SimpleTransformerArch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", qkv_proj_metadata))
 
-        # 2. 输出投影
+        # 2. Output projection
         o_proj_metadata = OperatorMetadata(
             name="o_proj",
             op_type="matmul",
@@ -64,9 +64,9 @@ class SimpleTransformerArch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", o_proj_metadata))
 
-        # 2.1. TP AllReduce (如果 TP > 1)
+        # 2.1. TP AllReduce (if TP > 1)
         if sc.tp_size > 1:
-            # 根据模式选择带宽
+            # Select bandwidth based on mode
             if sc.mode == ForwardMode.EXTEND:
                 reduce_bandwidth = 85.0  # GB/s
             else:  # DECODE
@@ -89,10 +89,10 @@ class SimpleTransformerArch(BaseModelArch):
             all_reduce_op._bandwidth_gb_s = reduce_bandwidth
             self._add_transfer_operator(all_reduce_op)
 
-        # 3. 注意力核心
+        # 3. Attention core
         attn_operators = []
 
-        # Q-K 注意力
+        # Q-K attention
         qk_metadata = OperatorMetadata(
             name="qk",
             op_type="attention",
@@ -111,7 +111,7 @@ class SimpleTransformerArch(BaseModelArch):
             create_operator("attention", qk_metadata, mc.attention_type)
         )
 
-        # Q-K-V 注意力
+        # Q-K-V attention
         qkv_metadata = OperatorMetadata(
             name="qkv",
             op_type="attention",
@@ -132,11 +132,11 @@ class SimpleTransformerArch(BaseModelArch):
 
         self._add_attention_operator("attention", attn_operators)
 
-        # 4. 前馈网络 (FFN)
+        # 4. Feed-Forward Network (FFN)
         assert mc.intermediate_size % sc.tp_size == 0
         intermediate_size = mc.intermediate_size // sc.tp_size
 
-        # Gate-Up 投影
+        # Gate-Up projection
         gate_up_metadata = OperatorMetadata(
             name="dense_gate_up_proj",
             op_type="matmul",
@@ -153,7 +153,7 @@ class SimpleTransformerArch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", gate_up_metadata))
 
-        # Down 投影
+        # Down projection
         down_metadata = OperatorMetadata(
             name="dense_down_proj",
             op_type="matmul",

@@ -6,39 +6,41 @@ from src.arch.op.operator_base import DataType, OperatorIO, OperatorMetadata, Te
 
 
 class DeepSeekV3Arch(BaseModelArch):
-    """混合专家模型架构（如 DeepSeek V3）"""
+    """Mixture of Experts model architecture (e.g., DeepSeek V3)"""
 
     def build_operators(self) -> None:
-        """构建 MoE 模型的算子"""
+        """Build operators for MoE model"""
         mc = self.model_config
         sc = self.schedule_config
 
-        # 处理 MoE 配置的特殊情况
+        # Handle special case for MoE configuration
         if not isinstance(mc, DeepSeekV3Config):
-            raise ValueError(f"MoE 架构需要 DeepSeekV3Config，但收到 {type(mc)}")
+            raise ValueError(
+                f"MoE architecture requires DeepSeekV3Config, but received {type(mc)}"
+            )
 
-        # 1. 建立注意力层
+        # 1. Build attention layers
         num_attn_layers = mc.num_hidden_layers + (1 if sc.is_mtp else 0)
         self._build_attention_operators(num_attn_layers)
 
-        # 2. 建立密集层（前 K 层）
+        # 2. Build dense layers (first K layers)
         self._build_dense_operators(mc.first_k_dense_replace)
 
-        # 3. 建立 MoE 层
+        # 3. Build MoE layers
         moe_layers = (
             mc.num_hidden_layers - mc.first_k_dense_replace + (1 if sc.is_mtp else 0)
         )
         self._build_moe_operators(moe_layers)
 
-        # 4. 建立 Deep-EP 传输算子（如果启用）
+        # 4. Build Deep-EP transfer operators (if enabled)
         if sc.deepep:
             self._build_deepep_operators(moe_layers)
 
     def _build_attention_operators(self, num_layers) -> None:
         # ====================
-        # 1. QKV 投影算子
+        # 1. QKV projection operators
         # ====================
-        """构建注意力算子"""
+        """Build attention operators"""
         mc = self.model_config
         sc = self.schedule_config
 
@@ -49,7 +51,7 @@ class DeepSeekV3Arch(BaseModelArch):
         num_heads_per_rank = mc.num_attention_heads // sc.tp_size
         seq_len = self.get_seq_length()
         qk_head_dim = mc.qk_nope_head_dim + mc.qk_rope_head_dim
-        # QKV A 投影算子Meta信息
+        # QKV A projection operator metadata
         q_a_kv_a_metadata = OperatorMetadata(
             name="q_a_kv_a",
             op_type="matmul",
@@ -71,7 +73,7 @@ class DeepSeekV3Arch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", q_a_kv_a_metadata))
 
-        # Q B 投影算子Meta信息
+        # Q B projection operator metadata
         q_b_metadata = OperatorMetadata(
             name="q_b",
             op_type="matmul",
@@ -88,7 +90,7 @@ class DeepSeekV3Arch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", q_b_metadata))
 
-        # KV B 投影
+        # KV B projection
         if sc.mode == ForwardMode.EXTEND:
             kv_b_metadata = OperatorMetadata(
                 name="kv_b",
@@ -167,9 +169,9 @@ class DeepSeekV3Arch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", o_proj_metadata))
 
-        # 2. TP AllReduce (如果 TP > 1)
+        # 2. TP AllReduce (if TP > 1)
         if sc.tp_size > 1:
-            # 根据模式选择带宽
+            # Select bandwidth based on mode
             if sc.mode == ForwardMode.EXTEND:
                 reduce_bandwidth = 85.0  # GB/s
             else:  # DECODE
@@ -254,9 +256,9 @@ class DeepSeekV3Arch(BaseModelArch):
 
     def _build_dense_operators(self, num_dense_layers: int) -> None:
         # ====================
-        # 2. Dense 层算子
+        # 2. Dense layer operators
         # ====================
-        """构建密集层算子"""
+        """Build dense layer operators"""
         mc = self.model_config
         sc = self.schedule_config
 
@@ -266,7 +268,7 @@ class DeepSeekV3Arch(BaseModelArch):
         if not sc.enable_moe_dense_fully_dp:
             intermediate_size = intermediate_size // sc.tp_size
 
-        # Gate-Up 投影
+        # Gate-Up projection
         gate_up_metadata = OperatorMetadata(
             name="dense_gate_up_proj",
             op_type="matmul",
@@ -300,9 +302,9 @@ class DeepSeekV3Arch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", down_metadata))
 
-        # 3. TP AllReduce (如果 TP > 1 且不是全 DP 模式)
+        # 3. TP AllReduce (if TP > 1 and not full DP mode)
         if sc.tp_size > 1 and not sc.enable_moe_dense_fully_dp:
-            # 根据模式选择带宽
+            # Select bandwidth based on mode
             if sc.mode == ForwardMode.EXTEND:
                 reduce_bandwidth = 85.0  # GB/s
             else:  # DECODE
@@ -327,9 +329,9 @@ class DeepSeekV3Arch(BaseModelArch):
 
     def _build_moe_operators(self, num_moe_layers: int) -> None:
         # ====================
-        # 3. MoE 层算子
+        # 3. MoE layer operators
         # ====================
-        """构建 MoE 算子"""
+        """Build MoE operators"""
         mc = self.model_config
         sc = self.schedule_config
 
@@ -344,15 +346,15 @@ class DeepSeekV3Arch(BaseModelArch):
         elif sc.mode == ForwardMode.DECODE:
             L = sc.batch_size
         assert L // sc.tp_size * mc.num_experts_per_tok % experts_per_rank == 0
-        # 计算每个 rank 的 token 数量
+        # Calculate number of tokens per rank
         L_per_rank = L // sc.tp_size * mc.num_experts_per_tok // experts_per_rank
 
-        # MoE 共享中间层大小
+        # MoE shared intermediate size
         _moe_intermediate_size = mc.moe_intermediate_size
         if not sc.deepep:
             _moe_intermediate_size = _moe_intermediate_size // sc.tp_size
 
-        # MoE Gate 投影
+        # MoE Gate projection
         moe_gate_metadata = OperatorMetadata(
             name="moe_gate",
             op_type="matmul",
@@ -403,7 +405,7 @@ class DeepSeekV3Arch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", moe_down_metadata))
 
-        # 共享专家 Up 投影
+        # Shared expert Up projection
         share_up_metadata = OperatorMetadata(
             name="share_up",
             op_type="matmul",
@@ -420,7 +422,7 @@ class DeepSeekV3Arch(BaseModelArch):
         )
         self._add_operator(create_operator("matmul", share_up_metadata))
 
-        # 共享专家 Down 投影
+        # Shared expert Down projection
         share_down_metadata = OperatorMetadata(
             name="share_down",
             op_type="matmul",
@@ -439,9 +441,9 @@ class DeepSeekV3Arch(BaseModelArch):
 
     def _build_deepep_operators(self, num_moe_layers: int) -> None:
         # ====================
-        # 4. Deep-EP 传输算子
+        # 4. Deep-EP transfer operators
         # ====================
-        """构建 Deep-EP 传输算子"""
+        """Build Deep-EP transfer operators"""
         mc = self.model_config
         sc = self.schedule_config
 
@@ -457,7 +459,7 @@ class DeepSeekV3Arch(BaseModelArch):
             dispatch_bandwidth = 18.58  # GB/s
             combine_bandwidth = 22.64
 
-        # 分发传输, prefill 或者 decode 下面的逻辑一致，只是dispatch_bandwidth 和 combine_bandwidth 的值不同
+        # Dispatch transfer, logic is the same for prefill or decode, only dispatch_bandwidth and combine_bandwidth values differ
         dispatch_metadata = OperatorMetadata(
             name="dispatch",
             op_type="transfer",
@@ -471,11 +473,11 @@ class DeepSeekV3Arch(BaseModelArch):
             num_layers=num_moe_layers,
         )
         dispatch_op = create_operator("transfer", dispatch_metadata)
-        # 设置带宽（用于传输时间计算）
+        # Set bandwidth (used for transfer time calculation)
         dispatch_op._bandwidth_gb_s = dispatch_bandwidth
         self._add_transfer_operator(dispatch_op)
 
-        # 合并传输
+        # Combine transfer
         combine_metadata = OperatorMetadata(
             name="combine",
             op_type="transfer",
@@ -489,7 +491,7 @@ class DeepSeekV3Arch(BaseModelArch):
             num_layers=num_moe_layers,
         )
         combine_op = create_operator("transfer", combine_metadata)
-        # 设置带宽（用于传输时间计算）
+        # Set bandwidth (used for transfer time calculation)
         combine_op._bandwidth_gb_s = combine_bandwidth
         self._add_transfer_operator(combine_op)
 

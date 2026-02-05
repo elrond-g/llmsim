@@ -5,12 +5,12 @@ from src.arch.op.operator_base import OperatorMetadata
 
 @dataclass
 class OperatorPerformance:
-    """单个算子的性能指标"""
+    """Performance metrics for a single operator"""
 
     name: str = ""
     op_type: str = ""
 
-    # 时间指标 (微秒)
+    # Time metrics (microseconds)
     compute_time: float = 0.0
     memory_time: float = 0.0
     transfer_time: float = 0.0
@@ -19,15 +19,15 @@ class OperatorPerformance:
 
     total_time: float = 0.0
 
-    # 计算和内存指标
+    # Compute and memory metrics
     flops: float = 0.0
     memory_volume: float = 0.0
     io_volume: float = 0.0
 
-    # 记录这个算子的基本信息，用于可视化
+    # Record basic information of this operator for visualization
     metadata: OperatorMetadata = field(default_factory=OperatorMetadata)
 
-    # 权重占用显存大小
+    # Weight memory occupancy size
     weight_mem_occupy: float = 0.0
 
     def __str__(self) -> str:

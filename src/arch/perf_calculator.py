@@ -1,5 +1,5 @@
 """
-性能计算引擎 - 统一的性能计算和分析模块
+Performance calculation engine - Unified performance computation and analysis module
 """
 
 from src.arch.models_arch.model_arch import BaseModelArch
@@ -11,33 +11,33 @@ from src.hardware.hardware_config import HardwareConfig
 
 
 class PerformanceCalculator:
-    """性能计算引擎"""
+    """Performance calculation engine"""
 
     def __init__(self, hardware_config: HardwareConfig):
         """
-        初始化性能计算器
+        Initialize performance calculator
 
         Args:
-            hardware_config: 硬件配置
+            hardware_config: Hardware configuration
         """
         self.hardware = hardware_config
 
     def calculate_compute_time(self, operator: BaseOperator) -> float:
         """
-        计算算子的计算时间
+        Calculate operator computation time
 
         Args:
-            operator: 算子实例
+            operator: Operator instance
 
         Returns:
-            计算时间 (微秒)
+            Computation time (microseconds)
         """
         flops = operator.get_compute_complexity()
 
         if flops == 0:
             return 0.0
 
-        # 根据数据类型选择合适的 MAC 性能
+        # Select appropriate MAC performance based on data type
         io_config = operator.metadata.io_config
         dtype_bytes = io_config.weight_dtype.value
 
@@ -62,19 +62,19 @@ class PerformanceCalculator:
         dma: float,
     ) -> float:
         """
-        返回: 微秒 (us)
+        Returns: microseconds (us)
         """
         return (load_count * load_dtype + store_count * store_dtype) / dma / 1000000.0
 
     def calculate_memory_time(self, operator: BaseOperator) -> float:
         """
-        计算算子的内存访问时间
+        Calculate operator memory access time
 
         Args:
-            operator: 算子实例
+            operator: Operator instance
 
         Returns:
-            内存时间 (微秒)
+            Memory time (microseconds)
         """
         io_volume = operator.get_io_volume()
 
@@ -89,24 +89,24 @@ class PerformanceCalculator:
 
     def calculate_transfer_time(self, operator: BaseOperator) -> float:
         """
-        计算传输算子的传输时间
+        Calculate transfer operator transmission time
 
         Args:
-            operator: 算子实例
-            bandwidth_gb_s: 带宽 (GB/s)，如果为 None 使用默认网络带宽
+            operator: Operator instance
+            bandwidth_gb_s: Bandwidth (GB/s), if None use default network bandwidth
 
         Returns:
-            传输时间 (微秒)
+            Transfer time (microseconds)
         """
-        # 获取带宽（从算子的自定义属性中获取，或使用默认值）
+        # Get bandwidth (from operator's custom attribute or use default)
         bandwidth_gb_s = getattr(operator, "_bandwidth_gb_s", None)
         if bandwidth_gb_s is None:
-            # 根据算子名称选择合适的带宽
+            # Select appropriate bandwidth based on operator name
             if operator.metadata.name == "dispatch":
-                # dispatch 使用 DeepSeek 老版本中的 nb 配置（解码模式下 18.58）
+                # dispatch uses nb config from DeepSeek legacy version (18.58 in decode mode)
                 bandwidth_gb_s = self.hardware.bandwidth.dma_bandwidth_decode_gb_s
             elif operator.metadata.name == "combine":
-                # combine 使用 DeepSeek 老版本中的 nb 配置（解码模式下 22.64）
+                # combine uses nb config from DeepSeek legacy version (22.64 in decode mode)
                 bandwidth_gb_s = self.hardware.bandwidth.dma_bandwidth_decode_gb_s
             else:
                 bandwidth_gb_s = self.hardware.bandwidth.link_bandwidth_gb_s
@@ -115,8 +115,8 @@ class PerformanceCalculator:
         transfer_bytes = io_volume.get("transfer", io_volume.get("load", 0))
 
         # data.transfer = m * n * batch * dtype / nb / 1000.0
-        # 这里 transfer_bytes = m * n * batch * dtype（字节数），nb = GB/s
-        # 返回 "微秒/层"
+        # Here transfer_bytes = m * n * batch * dtype (bytes), nb = GB/s
+        # Returns "microseconds/layer"
         transfer_time_us = transfer_bytes / bandwidth_gb_s / 1000.0
 
         return transfer_time_us
@@ -125,17 +125,17 @@ class PerformanceCalculator:
         self, operator: BaseOperator
     ) -> OperatorPerformance:
         """
-        计算单个算子的性能指标
+        Calculate performance metrics for a single operator
 
         Args:
-            operator: 算子实例
+            operator: Operator instance
 
         Returns:
-            算子性能指标
+            Operator performance metrics
         """
         metadata = operator.metadata
 
-        # 计算不同类型的时间
+        # Calculate different types of time
         compute_time = 0.0
         memory_time = 0.0
         transfer_time = 0.0
@@ -148,32 +148,38 @@ class PerformanceCalculator:
         elif metadata.op_type == "matmul":
             compute_time = self.calculate_compute_time(operator)
             memory_time = self.calculate_memory_time(operator)
-            # print(f'name = {operator.metadata.name}, compute_time = {compute_time}， memory_time={memory_time}')
+            # print(f'name = {operator.metadata.name}, compute_time = {compute_time}, memory_time={memory_time}')
         else:
-            # 未知算子类型，记录警告但继续执行
+            # Unknown operator type, log warning but continue execution
             print(
-                f"警告: 未识别的算子类型 '{metadata.op_type}'，算子名称: {metadata.name}"
+                f"Warning: Unrecognized operator type '{metadata.op_type}', operator name: {metadata.name}"
             )
 
-        # 每层的时间 (乘以层数)
+        # Time per layer (multiplied by layer count)
         layer_count = metadata.num_layers
 
-        # 添加空值检查，防止 NoneType 错误
+        # Add null check to prevent NoneType errors
         if compute_time is None:
-            print(f"警告: 算子 {metadata.name} 的 compute_time 为 None，设置为 0.0")
+            print(
+                f"Warning: compute_time is None for operator {metadata.name}, setting to 0.0"
+            )
             compute_time = 0.0
         if memory_time is None:
-            print(f"警告: 算子 {metadata.name} 的 memory_time 为 None，设置为 0.0")
+            print(
+                f"Warning: memory_time is None for operator {metadata.name}, setting to 0.0"
+            )
             memory_time = 0.0
         if transfer_time is None:
-            print(f"警告: 算子 {metadata.name} 的 transfer_time 为 None，设置为 0.0")
+            print(
+                f"Warning: transfer_time is None for operator {metadata.name}, setting to 0.0"
+            )
             transfer_time = 0.0
 
         total_compute_time = compute_time * layer_count
         total_memory_time = memory_time * layer_count
         total_transfer_time = transfer_time * layer_count
 
-        # 总时间取最大值
+        # Total time takes the maximum value
         total_time = max(total_compute_time, total_memory_time) + total_transfer_time
 
         single_layer_op_weight_mem = operator.get_weight_mem_occupy()
@@ -186,7 +192,7 @@ class PerformanceCalculator:
             memory_time=memory_time,
             transfer_time=transfer_time,
             op_time_single_layer=max(compute_time, memory_time) + transfer_time,
-            total_time=total_time / 1000.0,  # 转换为毫秒
+            total_time=total_time / 1000.0,  # Convert to milliseconds
             flops=operator.get_compute_complexity() * layer_count,
             memory_volume=operator.get_memory_requirement().get("weight", 0),
             io_volume=operator.get_io_volume().get("load", 0)
@@ -201,13 +207,13 @@ class PerformanceCalculator:
         self, model_arch: BaseModelArch
     ) -> ModelPerformance:
         """
-        计算整个模型的性能
+        Calculate performance for the entire model
 
         Args:
-            model_arch: 模型架构实例
+            model_arch: Model architecture instance
 
         Returns:
-            模型性能指标
+            Model performance metrics
         """
         model_arch.build_operators()
 
@@ -217,14 +223,14 @@ class PerformanceCalculator:
             schedule_config=model_arch.schedule_config,
         )
 
-        # 矩阵算子的大部分在这里，attention 在attention那，传输的在传输那里
+        # Most matrix operators are here, attention operators in attention section, transfer operators in transfer section
         for operator in model_arch.operators:
             op_perf = self.calculate_operator_performance(operator)
             layer_perf = LayerPerformance(layer_name=op_perf.name, layer_type="compute")
             layer_perf.add_operator(op_perf)
             model_perf.add_layer(layer_perf)
 
-        # 处理注意力算子
+        # Process attention operators
         for attn_key, operators in model_arch.attention_operators.items():
             for operator in operators:
                 op_perf = self.calculate_operator_performance(operator)
@@ -234,7 +240,7 @@ class PerformanceCalculator:
                 layer_perf.add_operator(op_perf)
                 model_perf.add_layer(layer_perf)
 
-        # 处理传输算子
+        # Process transfer operators
         for operator in model_arch.transfer_operators:
             op_perf = self.calculate_operator_performance(operator)
             layer_perf = LayerPerformance(
@@ -254,12 +260,12 @@ class PerformanceCalculator:
         output_path: str = None,
     ) -> None:
         """
-        打印性能报告
+        Print performance report
 
         Args:
-            model_perf: 模型性能指标
-            output_format: 输出格式 ('console' 或 'excel')
-            output_path: 输出文件路径（可选，仅对某些格式有效）
+            model_perf: Model performance metrics
+            output_format: Output format ('console' or 'excel')
+            output_path: Output file path (optional, only valid for certain formats)
         """
         from src.visual.report_formatter import create_formatter
 

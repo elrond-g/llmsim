@@ -8,7 +8,7 @@ from src.arch.model_type import AttentionType, ForwardMode
 
 @dataclass
 class ModelConfig:
-    """模型配置基类"""
+    """Base class for model configuration"""
 
     model_type: str = ""
     hidden_size: int = 4096
@@ -16,19 +16,19 @@ class ModelConfig:
     num_attention_heads: int = 32
     num_key_value_heads: int = 8
     intermediate_size: int = 11008
-    attention_type: AttentionType = AttentionType.MHA  # 默认使用 MHA
+    attention_type: AttentionType = AttentionType.MHA  # Default to MHA
 
-    # 从 JSON 配置文件加载
+    # Load from JSON configuration file
     @staticmethod
     def from_json(config_path: str) -> "ModelConfig":
-        """从 JSON 文件加载配置"""
+        """Load configuration from JSON file"""
         if not os.path.exists(config_path):
             raise RuntimeError(f"Model config not found: {config_path}")
 
         with open(config_path, "r") as f:
             data = json.load(f)
 
-        # 根据 model_type 选择合适的配置类
+        # Select appropriate config class based on model_type
         model_type = data.get("model_type", "")
 
         if model_type == "deepseek_v3":
@@ -40,7 +40,7 @@ class ModelConfig:
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "ModelConfig":
-        """从字典创建配置"""
+        """Create configuration from dictionary"""
         config = ModelConfig()
         for key, value in data.items():
             if hasattr(config, key):
@@ -53,11 +53,11 @@ class ModelConfig:
 
 @dataclass
 class DeepSeekV3Config(ModelConfig):
-    """DeepSeek V3 模型配置"""
+    """DeepSeek V3 model configuration"""
 
     model_type: str = "deepseek_v3"
 
-    # 特定参数
+    # Specific parameters
     qk_nope_head_dim: int = 128
     qk_rope_head_dim: int = 64
     v_head_dim: int = 128
@@ -74,7 +74,7 @@ class DeepSeekV3Config(ModelConfig):
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "DeepSeekV3Config":
-        """从字典创建配置"""
+        """Create configuration from dictionary"""
         config = DeepSeekV3Config()
         for key, value in data.items():
             if hasattr(config, key):
@@ -86,17 +86,17 @@ class DeepSeekV3Config(ModelConfig):
 
 @dataclass
 class Qwen3Config(ModelConfig):
-    """Qwen3 模型配置"""
+    """Qwen3 model configuration"""
 
     model_type: str = "qwen3"
 
-    # 特定参数
+    # Specific parameters
     head_dim: int = 128
     attention_type: AttentionType = AttentionType.MHA
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "Qwen3Config":
-        """从字典创建配置"""
+        """Create configuration from dictionary"""
         config = Qwen3Config()
         for key, value in data.items():
             if hasattr(config, key):
@@ -108,7 +108,7 @@ class Qwen3Config(ModelConfig):
 
 @dataclass
 class ScheduleConfig:
-    """调度配置"""
+    """Scheduling configuration"""
 
     batch_size: int = 64
     max_seqlen: int = 4096
@@ -117,12 +117,12 @@ class ScheduleConfig:
     num_nodes: int = 2
     world_size: int = 16
 
-    # 并行化配置
+    # Parallelism configuration
     tp_size: int = 1  # Tensor Parallel
     dp_size: int = 16  # Data Parallel
     ep_size: int = 16  # Expert Parallel
 
-    # 特殊功能开关
+    # Special feature switches
     is_mtp: bool = True  # Multi-Token Prediction
     deepep: bool = True  # Deep Expert Parallel
     enable_moe_dense_fully_dp: bool = False

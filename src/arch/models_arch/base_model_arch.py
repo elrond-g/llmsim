@@ -6,15 +6,15 @@ from src.arch.op.operator_base import BaseOperator
 
 
 class BaseModelArch(ABC):
-    """模型架构基类"""
+    """Base class for model architecture"""
 
     def __init__(self, model_config: ModelConfig, schedule_config: ScheduleConfig):
         """
-        初始化模型架构, 一个模型结构至少需要模型配置，调度配置，算子，注意力算子，传输算子
+        Initialize model architecture. A model structure requires at least model config, schedule config, operators, attention operators, and transfer operators.
 
         Args:
-            model_config: 模型配置
-            schedule_config: 调度配置
+            model_config: Model configuration
+            schedule_config: Schedule configuration
         """
         self.model_config = model_config
         self.schedule_config = schedule_config
@@ -24,11 +24,11 @@ class BaseModelArch(ABC):
 
     @abstractmethod
     def build_operators(self) -> List[BaseOperator]:
-        """构建模型的算子图"""
+        """Build the operator graph for the model"""
         pass
 
     def get_seq_length(self) -> int:
-        """根据模式获取序列长度"""
+        """Get sequence length based on mode"""
         if self.schedule_config.mode == ForwardMode.EXTEND:
             return self.schedule_config.max_seqlen
         elif self.schedule_config.mode == ForwardMode.DECODE:
@@ -36,21 +36,21 @@ class BaseModelArch(ABC):
         return self.schedule_config.max_seqlen
 
     def _add_operator(self, operator: BaseOperator) -> None:
-        """添加算子到操作符列表"""
+        """Add operator to the operator list"""
         self.operators.append(operator)
 
     def _add_attention_operator(self, key: str, operators: List[BaseOperator]) -> None:
-        """添加注意力算子"""
+        """Add attention operator"""
         self.attention_operators[key] = operators
 
     def _add_transfer_operator(self, operator: BaseOperator) -> None:
-        """添加传输算子"""
+        """Add transfer operator"""
         self.transfer_operators.append(operator)
 
     def get_kv_cache(self):
-        """KVCache 理论上只跟model config 有关系"""
+        """KVCache theoretically only depends on model config"""
         pass
 
     def get_kv_cache_per_gpu(self):
-        """KVCache 理论上只跟model config 有关系"""
+        """KVCache theoretically only depends on model config"""
         pass
