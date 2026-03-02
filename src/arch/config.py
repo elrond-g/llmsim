@@ -48,6 +48,8 @@ class ModelConfig:
             return Qwen3Config.from_dict(data)
         elif model_type == "qwen3_moe":
             return Qwen3MoEConfig.from_dict(data)
+        elif model_type == "qwen3_5_moe":
+            return Qwen3_5MoEConfig.from_dict(data)
         else:
             return ModelConfig.from_dict(data)
 
@@ -138,6 +140,47 @@ class Qwen3MoEConfig(Qwen3Config):
                 setattr(config, key, value)
             else:
                 setattr(config, key, value)
+        return config
+
+
+@dataclass
+class Qwen3_5MoEConfig(Qwen3MoEConfig):
+    """Qwen3.5 MoE configuration with hybrid attention (linear + full attention)"""
+
+    model_type: str = "qwen3_5_moe"
+
+    # Hybrid attention parameters
+    full_attention_interval: int = 4
+    layer_types: list = None  # Array of "linear_attention" or "full_attention"
+
+    # Linear attention parameters
+    linear_key_head_dim: int = 128
+    linear_num_key_heads: int = 16
+    linear_num_value_heads: int = 64
+    linear_value_head_dim: int = 128
+    linear_conv_kernel_dim: int = 4
+
+    # Shared expert parameters
+    shared_expert_intermediate_size: int = 1024
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "Qwen3_5MoEConfig":
+        config = Qwen3_5MoEConfig()
+        # Handle nested text_config for multimodal models
+        if "text_config" in data:
+            text_data = data["text_config"]
+            for key, value in text_data.items():
+                if hasattr(config, key):
+                    setattr(config, key, value)
+                else:
+                    setattr(config, key, value)
+        # Also process top-level keys
+        for key, value in data.items():
+            if key != "text_config":
+                if hasattr(config, key):
+                    setattr(config, key, value)
+                else:
+                    setattr(config, key, value)
         return config
 
 
