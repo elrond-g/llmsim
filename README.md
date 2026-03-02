@@ -154,6 +154,7 @@ python3 src/main.py \
 |-------|-------------|----------------------|
 | DeepSeek-V3/R1 671B | `deepseek_671b_r1_config.json` | MLA + MoE, 256 experts |
 | DeepSeek-V3.2 | `deepseek_v3.2_config.json` | MLA + MoE |
+| Qwen3.5-397B-A17B | `Qwen/Qwen3.5-397B-A17B` | MHA + MoE |
 | Qwen3-235B-A22B | `qwen3-235B-A22B_config.json` | MHA + MoE |
 | Qwen3-Next-80B-A3B | `qwen3-next-80B-A3B_config.json` | MHA + MoE |
 | Qwen3-32B | `qwen3-32B_config.json` | Dense model |
