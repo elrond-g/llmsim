@@ -44,6 +44,8 @@ class ModelConfig:
 
         if model_type == "deepseek_v3":
             return DeepSeekV3Config.from_dict(data)
+        elif model_type == "glm_moe_dsa":
+            return GlmMoeDsaConfig.from_dict(data)
         elif model_type == "qwen3":
             return Qwen3Config.from_dict(data)
         elif model_type == "qwen3_moe":
@@ -91,6 +93,34 @@ class DeepSeekV3Config(ModelConfig):
     def from_dict(data: Dict[str, Any]) -> "DeepSeekV3Config":
         """Create configuration from dictionary"""
         config = DeepSeekV3Config()
+        for key, value in data.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+            else:
+                setattr(config, key, value)
+        return config
+
+
+@dataclass
+class GlmMoeDsaConfig(DeepSeekV3Config):
+    """GLM MoE DSA model configuration"""
+
+    model_type: str = "glm_moe_dsa"
+
+    # DSA-specific parameters
+    head_dim: int = 64
+    qk_head_dim: int = 256
+    index_head_dim: int = 128
+    index_n_heads: int = 32
+    index_topk: int = 2048
+    moe_layer_freq: int = 1
+    num_nextn_predict_layers: int = 1
+    num_key_value_heads: int = 64
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "GlmMoeDsaConfig":
+        """Create configuration from dictionary"""
+        config = GlmMoeDsaConfig()
         for key, value in data.items():
             if hasattr(config, key):
                 setattr(config, key, value)
