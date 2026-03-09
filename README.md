@@ -155,6 +155,7 @@ python3 src/main.py \
 | DeepSeek-V3/R1 671B | `deepseek_671b_r1_config.json` | MLA + MoE, 256 experts |
 | DeepSeek-V3.2 | `deepseek_v3.2_config.json` | MLA + MoE |
 | GLM-5 | `hf_config/huggingface.co/zai-org/GLM-5/config.json` | DSA (index attention) + MoE |
+| MiniMax-M2.5 | `hf_config/huggingface.co/MiniMaxAI/MiniMax-M2.5/config.json` | GQA + MoE, 256 experts, MTP |
 | Qwen3.5-397B-A17B | `Qwen/Qwen3.5-397B-A17B` | MHA + MoE |
 | Qwen3-235B-A22B | `qwen3-235B-A22B_config.json` | MHA + MoE |
 | Qwen3-Next-80B-A3B | `qwen3-next-80B-A3B_config.json` | MHA + MoE |

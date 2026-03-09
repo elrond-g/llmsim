@@ -6,6 +6,7 @@ from src.arch.config import ModelConfig, ScheduleConfig
 from src.arch.models_arch.base_model_arch import BaseModelArch
 from src.arch.models_arch.deepseek_v3_model_arch import DeepSeekV3Arch
 from src.arch.models_arch.glm_moe_dsa_model_arch import GlmMoeDsaArch
+from src.arch.models_arch.minimax_m2_model_arch import MiniMaxM2Arch
 from src.arch.models_arch.qwen3_moe_model_arch import Qwen3MoEArch
 from src.arch.models_arch.qwen3_5_moe_model_arch import Qwen3_5MoEArch
 from src.arch.models_arch.simple_model_arch import SimpleTransformerArch
@@ -34,6 +35,8 @@ def create_model_arch(
         return Qwen3MoEArch(model_config, schedule_config)
     elif model_type == "qwen3_5_moe":
         return Qwen3_5MoEArch(model_config, schedule_config)
+    elif model_type == "minimax_m2":
+        return MiniMaxM2Arch(model_config, schedule_config)
     elif model_type == "qwen3":
         return SimpleTransformerArch(model_config, schedule_config)
     else:

@@ -52,6 +52,8 @@ class ModelConfig:
             return Qwen3MoEConfig.from_dict(data)
         elif model_type == "qwen3_5_moe":
             return Qwen3_5MoEConfig.from_dict(data)
+        elif model_type == "minimax_m2":
+            return MiniMaxM2Config.from_dict(data)
         else:
             return ModelConfig.from_dict(data)
 
@@ -211,6 +213,35 @@ class Qwen3_5MoEConfig(Qwen3MoEConfig):
                     setattr(config, key, value)
                 else:
                     setattr(config, key, value)
+        return config
+
+
+@dataclass
+class MiniMaxM2Config(ModelConfig):
+    """MiniMax M2 model configuration (e.g., MiniMax-M2.5)"""
+
+    model_type: str = "minimax_m2"
+
+    # Attention parameters
+    head_dim: int = 128
+    rotary_dim: int = 64  # RoPE head dim
+    attention_type: AttentionType = AttentionType.MHA
+
+    # MoE parameters (intermediate_size in JSON is per-expert FFN size)
+    num_local_experts: int = 256  # total routed experts
+    num_experts_per_tok: int = 8
+    shared_intermediate_size: int = 0  # no shared expert
+
+    # MTP parameters
+    num_mtp_modules: int = 3
+    mtp_transformer_layers: int = 1
+    use_mtp: bool = True
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "MiniMaxM2Config":
+        config = MiniMaxM2Config()
+        for key, value in data.items():
+            setattr(config, key, value)
         return config
 
 
